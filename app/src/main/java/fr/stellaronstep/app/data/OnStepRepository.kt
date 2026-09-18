@@ -1,6 +1,7 @@
 package fr.stellaronstep.app.data
 
 import fr.stellaronstep.app.core.onstep.MountStatus
+import fr.stellaronstep.app.core.onstep.OnStepDiagnostics
 import fr.stellaronstep.app.core.onstep.OnStepStatusParser
 import fr.stellaronstep.app.core.onstep.OnStepTcpClient
 import fr.stellaronstep.app.core.onstep.SlewDirection
@@ -15,6 +16,36 @@ class OnStepRepository(
         val ra = client.queryHash(":GR#")
         val dec = client.queryHash(":GD#")
         return OnStepStatusParser.parse(status, ra, dec)
+    }
+
+    suspend fun readDiagnostics(): OnStepDiagnostics {
+        suspend fun read(command: String): String =
+            runCatching {
+                client.queryHash(command).trim()
+            }.getOrElse {
+                "N/A"
+            }
+
+        return OnStepDiagnostics(
+            latitude = read(":Gt#"),
+            longitudeOnStep = read(":Gg#"),
+            date = read(":GC#"),
+            localTime = read(":GL#"),
+            utcOffset = read(":GG#"),
+            siderealTime = read(":GS#"),
+            altitude = read(":GA#"),
+            azimuth = read(":GZ#"),
+            horizonLimit = read(":Gh#"),
+            overheadLimit = read(":Go#"),
+            pierSide = read(":Gm#"),
+            rawStatus = read(":GU#"),
+            eastPastMeridianMin = read(":GXE9#"),
+            westPastMeridianMin = read(":GXEA#"),
+            axis1MinDeg = read(":GXEe#"),
+            axis1MaxDeg = read(":GXEw#"),
+            axis2MinDeg = read(":GXEC#"),
+            axis2MaxDeg = read(":GXED#")
+        )
     }
 
     suspend fun setSlewRate(rate: SlewRate) {
@@ -49,14 +80,15 @@ class OnStepRepository(
 
     suspend fun goHome(): String {
         val before = readStatus()
+        val beforeRaw = before.raw
 
         if (before.atHome) {
-            return "HOME deja atteint"
+            return "HOME deja atteint | GU=$beforeRaw"
         }
 
         if (before.parked) {
             if (!unpark()) {
-                return "HOME impossible : UNPARK refuse"
+                return "HOME impossible : UNPARK refuse | GU=$beforeRaw"
             }
             delay(350)
         }
@@ -66,15 +98,25 @@ class OnStepRepository(
 
         client.send(":hC#")
 
-        repeat(6) {
+        var lastRaw = beforeRaw
+
+        repeat(10) {
             delay(500)
-            val live = runCatching { readStatus() }.getOrNull()
-            if (live?.atHome == true) {
-                return "HOME atteint"
+
+            val live = runCatching {
+                readStatus()
+            }.getOrNull()
+
+            if (live != null) {
+                lastRaw = live.raw
+
+                if (live.atHome) {
+                    return "HOME atteint | GU=$lastRaw"
+                }
             }
         }
 
-        return "HOME commande envoye - attente du marqueur H"
+        return "HOME envoye | GU avant=$beforeRaw | GU apres=$lastRaw"
     }
 
     suspend fun goto(
@@ -95,13 +137,16 @@ class OnStepRepository(
 
         if (!before.tracking) {
             val trackingAccepted = tracking(true)
+
             if (!trackingAccepted) {
                 return "GOTO refuse : impossible d'activer le suivi"
             }
+
             delay(250)
         }
 
         val raReply = client.queryByte(":Sr$cleanRa#")
+
         if (raReply != "1") {
             return "GOTO refuse : RA non acceptee (Sr=$raReply)"
         }
@@ -109,6 +154,7 @@ class OnStepRepository(
         delay(80)
 
         val decReply = client.queryByte(":Sd$cleanDec#")
+
         if (decReply != "1") {
             return "GOTO refuse : DEC non acceptee (Sd=$decReply)"
         }
@@ -124,7 +170,7 @@ class OnStepRepository(
             "3" -> "GOTO refuse : controleur en veille"
             "4" -> "GOTO refuse : monture parkee"
             "5" -> "GOTO refuse : GOTO deja en cours"
-            "6" -> "GOTO refuse : cible hors limites"
+            "6" -> "GOTO refuse : hors limites mecaniques/meridien/declinaison"
             "7" -> "GOTO refuse : defaut materiel"
             "8" -> "GOTO refuse : monture deja en mouvement"
             else -> "GOTO : reponse OnStep $code"
@@ -136,7 +182,9 @@ class OnStepRepository(
 
         delay(400)
 
-        val live = runCatching { readStatus() }.getOrNull()
+        val live = runCatching {
+            readStatus()
+        }.getOrNull()
 
         return if (live?.slewing == true) {
             "$text - mouvement en cours"

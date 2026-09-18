@@ -20,6 +20,27 @@ data class MountStatus(
     val dec: String? = null
 )
 
+data class OnStepDiagnostics(
+    val latitude: String = "--",
+    val longitudeOnStep: String = "--",
+    val date: String = "--",
+    val localTime: String = "--",
+    val utcOffset: String = "--",
+    val siderealTime: String = "--",
+    val altitude: String = "--",
+    val azimuth: String = "--",
+    val horizonLimit: String = "--",
+    val overheadLimit: String = "--",
+    val pierSide: String = "--",
+    val rawStatus: String = "--",
+    val eastPastMeridianMin: String = "--",
+    val westPastMeridianMin: String = "--",
+    val axis1MinDeg: String = "--",
+    val axis1MaxDeg: String = "--",
+    val axis2MinDeg: String = "--",
+    val axis2MaxDeg: String = "--"
+)
+
 enum class SlewDirection(
     val label: String,
     val startCommand: String,
