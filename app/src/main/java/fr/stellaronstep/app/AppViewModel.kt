@@ -150,8 +150,26 @@ class AppViewModel(
     fun tracking(
         enabled: Boolean
     ) = action {
-        repository.tracking(enabled)
-        status = repository.readStatus()
+        val ok =
+            repository.tracking(enabled)
+
+        status =
+            repository.readStatus()
+
+        message =
+            if (ok) {
+                if (enabled) {
+                    "Suivi sideral ON"
+                } else {
+                    "Suivi OFF"
+                }
+            } else {
+                if (enabled && status.parked) {
+                    "Suivi impossible : monture parkee"
+                } else {
+                    "Commande suivi ${if (enabled) "ON" else "OFF"} non confirmee | GU=${status.raw}"
+                }
+            }
     }
 
     fun park() = action {

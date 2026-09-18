@@ -69,8 +69,89 @@ class OnStepRepository(
         client.send(":Q#")
     }
 
-    suspend fun tracking(enabled: Boolean): Boolean =
-        client.queryByte(if (enabled) ":Te#" else ":Td#") == "1"
+    suspend fun tracking(enabled: Boolean): Boolean {
+        val before = readStatus()
+
+        if (enabled && before.parked) {
+            return false
+        }
+
+        if (enabled) {
+            /*
+             * Force explicit sidereal tracking rate before enabling tracking.
+             * :TQ# has no reply.
+             */
+            client.send(":TQ#")
+            delay(100)
+        } else {
+            /*
+             * Stop any residual guide/slew state before disabling tracking.
+             */
+            client.send(":Q#")
+            delay(80)
+        }
+
+        var accepted =
+            client.queryByte(
+                if (enabled) ":Te#" else ":Td#"
+            ) == "1"
+
+        if (!accepted) {
+            return false
+        }
+
+        repeat(6) {
+            delay(250)
+
+            val live =
+                runCatching {
+                    readStatus()
+                }.getOrNull()
+
+            if (
+                live != null &&
+                live.tracking == enabled
+            ) {
+                return true
+            }
+        }
+
+        /*
+         * Some WiFi command channels acknowledge before the state
+         * transition is visible. Retry once, then trust GU state.
+         */
+        if (enabled) {
+            client.send(":TQ#")
+            delay(100)
+        }
+
+        accepted =
+            client.queryByte(
+                if (enabled) ":Te#" else ":Td#"
+            ) == "1"
+
+        if (!accepted) {
+            return false
+        }
+
+        repeat(6) {
+            delay(250)
+
+            val live =
+                runCatching {
+                    readStatus()
+                }.getOrNull()
+
+            if (
+                live != null &&
+                live.tracking == enabled
+            ) {
+                return true
+            }
+        }
+
+        return false
+    }
 
     suspend fun park(): Boolean =
         client.queryByte(":hP#") == "1"
@@ -82,43 +163,102 @@ class OnStepRepository(
         val before = readStatus()
         val beforeRaw = before.raw
 
+        val homeInfo =
+            runCatching {
+                client.queryHash(":h?#").trim()
+            }.getOrElse {
+                "N/A"
+            }
+
+        val date =
+            runCatching {
+                client.queryHash(":GC#").trim()
+            }.getOrElse {
+                "N/A"
+            }
+
+        val localTime =
+            runCatching {
+                client.queryHash(":GL#").trim()
+            }.getOrElse {
+                "N/A"
+            }
+
         if (before.atHome) {
-            return "HOME deja atteint | GU=$beforeRaw"
+            return "HOME deja atteint | h?=$homeInfo | GU=$beforeRaw"
         }
 
         if (before.parked) {
             if (!unpark()) {
                 return "HOME impossible : UNPARK refuse | GU=$beforeRaw"
             }
-            delay(350)
+
+            delay(400)
         }
 
-        runCatching { tracking(false) }
+        /*
+         * Ensure no manual slew/guide remains active.
+         */
+        client.send(":Q#")
+        delay(120)
+
+        /*
+         * HOME should start from tracking OFF.
+         * The result is deliberately not fatal here: hC may still
+         * provide the useful diagnostic state.
+         */
+        runCatching {
+            tracking(false)
+        }
+
         delay(150)
+
+        val startStatus =
+            runCatching {
+                readStatus()
+            }.getOrElse {
+                before
+            }
+
+        val startRa = startStatus.ra
+        val startDec = startStatus.dec
 
         client.send(":hC#")
 
-        var lastRaw = beforeRaw
+        var last = startStatus
+        var movementSeen = false
 
-        repeat(10) {
+        repeat(20) {
             delay(500)
 
-            val live = runCatching {
-                readStatus()
-            }.getOrNull()
+            val live =
+                runCatching {
+                    readStatus()
+                }.getOrNull()
 
             if (live != null) {
-                lastRaw = live.raw
+                if (
+                    live.ra != startRa ||
+                    live.dec != startDec ||
+                    live.slewing
+                ) {
+                    movementSeen = true
+                }
+
+                last = live
 
                 if (live.atHome) {
-                    return "HOME atteint | GU=$lastRaw"
+                    return "HOME atteint | h?=$homeInfo | GU=${live.raw}"
                 }
             }
         }
 
-        return "HOME envoye | GU avant=$beforeRaw | GU apres=$lastRaw"
+        return if (movementSeen) {
+            "HOME mouvement detecte mais non termine | h?=$homeInfo | GU=${last.raw}"
+        } else {
+            "HOME sans mouvement | h?=$homeInfo | date=$date | heure=$localTime | GU=${last.raw}"
+        }
     }
-
     suspend fun goto(
         ra: String,
         dec: String
