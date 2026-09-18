@@ -7,6 +7,8 @@ import fr.stellaronstep.app.core.onstep.OnStepTcpClient
 import fr.stellaronstep.app.core.onstep.SlewDirection
 import fr.stellaronstep.app.core.onstep.SlewRate
 import kotlinx.coroutines.delay
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class OnStepRepository(
     private val client: OnStepTcpClient
@@ -147,6 +149,179 @@ class OnStepRepository(
         }
     }
 
+    suspend fun initializeFromPhone(
+        date: String,
+        time: String,
+        utcOffset: String,
+        latitude: Double,
+        androidLongitude: Double
+    ): String {
+        val latitudeValue =
+            formatLatitude(latitude)
+
+        /*
+         * Android: Est positif, Ouest negatif.
+         * Convention OnStep/LX200 utilisee ici:
+         * Est negatif, Ouest positif.
+         */
+        val onStepLongitude =
+            -androidLongitude
+
+        val longitudeValue =
+            formatLongitude(onStepLongitude)
+
+        val utcOk =
+            client.queryByte(
+                ":SG$utcOffset#"
+            ) == "1"
+
+        delay(80)
+
+        val latitudeOk =
+            client.queryByte(
+                ":St$latitudeValue#"
+            ) == "1"
+
+        delay(80)
+
+        val longitudeOk =
+            client.queryByte(
+                ":Sg$longitudeValue#"
+            ) == "1"
+
+        delay(80)
+
+        val dateOk =
+            client.queryByte(
+                ":SC$date#"
+            ) == "1"
+
+        delay(80)
+
+        val timeOk =
+            client.queryByte(
+                ":SL$time#"
+            ) == "1"
+
+        delay(250)
+
+        val ready =
+            runCatching {
+                client.queryHash(":GX89#").trim()
+            }.getOrElse {
+                "?"
+            }
+
+        val readLatitude =
+            runCatching {
+                client.queryHash(":Gt#").trim()
+            }.getOrElse {
+                "?"
+            }
+
+        val readLongitude =
+            runCatching {
+                client.queryHash(":Gg#").trim()
+            }.getOrElse {
+                "?"
+            }
+
+        val readDate =
+            runCatching {
+                client.queryHash(":GC#").trim()
+            }.getOrElse {
+                "?"
+            }
+
+        val readTime =
+            runCatching {
+                client.queryHash(":GL#").trim()
+            }.getOrElse {
+                "?"
+            }
+
+        return if (
+            utcOk &&
+            latitudeOk &&
+            longitudeOk &&
+            dateOk &&
+            timeOk &&
+            ready == "0"
+        ) {
+            "INITIALISATION OK | Lat=$readLatitude | Lon=$readLongitude | Date=$readDate | Heure=$readTime | Faire maintenant RESET HOME"
+        } else {
+            "INITIALISATION INCOMPLETE | SG=${bool(utcOk)} St=${bool(latitudeOk)} Sg=${bool(longitudeOk)} SC=${bool(dateOk)} SL=${bool(timeOk)} GX89=$ready"
+        }
+    }
+
+    private fun bool(value: Boolean): String =
+        if (value) "1" else "0"
+
+    private fun formatLatitude(
+        latitude: Double
+    ): String {
+        val safe =
+            latitude.coerceIn(
+                -90.0,
+                90.0
+            )
+
+        val sign =
+            if (safe < 0.0) "-" else "+"
+
+        val totalSeconds =
+            (abs(safe) * 3600.0)
+                .roundToInt()
+
+        val degrees =
+            totalSeconds / 3600
+
+        val minutes =
+            (totalSeconds % 3600) / 60
+
+        val seconds =
+            totalSeconds % 60
+
+        return "%s%02d*%02d:%02d".format(
+            sign,
+            degrees,
+            minutes,
+            seconds
+        )
+    }
+
+    private fun formatLongitude(
+        longitude: Double
+    ): String {
+        val safe =
+            longitude.coerceIn(
+                -180.0,
+                180.0
+            )
+
+        val sign =
+            if (safe < 0.0) "-" else "+"
+
+        val totalSeconds =
+            (abs(safe) * 3600.0)
+                .roundToInt()
+
+        val degrees =
+            totalSeconds / 3600
+
+        val minutes =
+            (totalSeconds % 3600) / 60
+
+        val seconds =
+            totalSeconds % 60
+
+        return "%s%03d*%02d:%02d".format(
+            sign,
+            degrees,
+            minutes,
+            seconds
+        )
+    }
     suspend fun tracking(enabled: Boolean): Boolean {
         val before = readStatus()
 

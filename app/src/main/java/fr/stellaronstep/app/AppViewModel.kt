@@ -13,6 +13,7 @@ import fr.stellaronstep.app.core.onstep.OnStepTcpClient
 import fr.stellaronstep.app.core.onstep.SlewDirection
 import fr.stellaronstep.app.core.onstep.SlewRate
 import fr.stellaronstep.app.data.OnStepRepository
+import fr.stellaronstep.app.data.PhoneLocationProvider
 import fr.stellaronstep.app.data.SettingsStore
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -55,6 +56,9 @@ class AppViewModel(
 
     private val repository =
         OnStepRepository(client)
+
+    private val phoneLocation =
+        PhoneLocationProvider(application)
 
     private var pollingJob: Job? = null
 
@@ -154,6 +158,85 @@ class AppViewModel(
             repository.readStatus()
     }
 
+    fun initializeFromPhone() = action {
+        if (!phoneLocation.hasLocationPermission()) {
+            message =
+                "Autorisation de localisation requise"
+            return@action
+        }
+
+        val location =
+            phoneLocation.currentLocation()
+
+        if (location == null) {
+            message =
+                "Position GPS indisponible - activer la localisation du telephone puis recommencer"
+            return@action
+        }
+
+        val now =
+            ZonedDateTime.now()
+
+        val date =
+            now.format(
+                DateTimeFormatter.ofPattern(
+                    "MM/dd/yyyy"
+                )
+            )
+
+        val time =
+            now.format(
+                DateTimeFormatter.ofPattern(
+                    "HH:mm:ss"
+                )
+            )
+
+        /*
+         * OnStep: UTC = heure locale + offset.
+         * Android: heure locale = UTC + offset.
+         * Le signe doit donc etre inverse.
+         */
+        val onStepOffsetSeconds =
+            -now.offset.totalSeconds
+
+        val absolute =
+            abs(onStepOffsetSeconds)
+
+        val hours =
+            absolute / 3600
+
+        val minutes =
+            (absolute % 3600) / 60
+
+        val sign =
+            if (onStepOffsetSeconds < 0) {
+                "-"
+            } else {
+                "+"
+            }
+
+        val utcOffset =
+            "%s%02d:%02d".format(
+                sign,
+                hours,
+                minutes
+            )
+
+        message =
+            repository.initializeFromPhone(
+                date = date,
+                time = time,
+                utcOffset = utcOffset,
+                latitude = location.latitude,
+                androidLongitude = location.longitude
+            )
+
+        diagnostics =
+            repository.readDiagnostics()
+
+        status =
+            repository.readStatus()
+    }
     fun setRate(rate: SlewRate) {
         selectedRate = rate
 
