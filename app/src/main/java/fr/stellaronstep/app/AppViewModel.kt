@@ -233,10 +233,11 @@ class AppViewModel(
     }
 
     fun goHome() = action {
-        repository.goHome()
-
         message =
-            "Retour HOME demande"
+            repository.goHome()
+
+        status =
+            repository.readStatus()
     }
 
     fun goto(
@@ -249,6 +250,9 @@ class AppViewModel(
                 ra,
                 dec
             )
+
+        status =
+            repository.readStatus()
     }
 
     fun startAlignment(

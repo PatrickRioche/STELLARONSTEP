@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,10 +19,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import fr.stellaronstep.app.AppViewModel
+import fr.stellaronstep.app.ui.theme.Surface
 
-private data class Target(val name: String, val ra: String, val dec: String)
+private data class Target(
+    val name: String,
+    val ra: String,
+    val dec: String
+)
 
 private val quickTargets = listOf(
     Target("Polaris", "02:31:49", "+89*15:51"),
@@ -30,27 +39,108 @@ private val quickTargets = listOf(
 )
 
 @Composable
-fun GotoScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
+fun GotoScreen(
+    vm: AppViewModel,
+    modifier: Modifier = Modifier
+) {
     var ra by remember { mutableStateOf("") }
     var dec by remember { mutableStateOf("") }
-    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("GOTO / CIEL")
-        Text("Base inspirée de l'écran Ciel de StellarPilot : sélection rapide puis GOTO direct OnStep.")
+    val s = vm.status
+
+    Column(
+        modifier.fillMaxSize().padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("GOTO / CIEL", fontWeight = FontWeight.Bold)
+
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Surface),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(if (s.connected) "OnStepX : CONNECTE" else "OnStepX : DECONNECTE")
+                Text("RA actuelle  : ${s.ra ?: "--"}")
+                Text("DEC actuelle : ${s.dec ?: "--"}")
+                Text("Suivi : ${if (s.tracking) "ON" else "OFF"}")
+                Text("Park : ${if (s.parked) "OUI" else "NON"}")
+            }
+        }
+
+        Text("Cibles rapides")
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             quickTargets.take(3).forEach { target ->
-                FilterChip(selected = false, onClick = { ra = target.ra; dec = target.dec }, label = { Text(target.name) })
+                FilterChip(
+                    selected = ra == target.ra && dec == target.dec,
+                    onClick = {
+                        ra = target.ra
+                        dec = target.dec
+                    },
+                    label = { Text(target.name) }
+                )
             }
         }
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             quickTargets.drop(3).forEach { target ->
-                FilterChip(selected = false, onClick = { ra = target.ra; dec = target.dec }, label = { Text(target.name) })
+                FilterChip(
+                    selected = ra == target.ra && dec == target.dec,
+                    onClick = {
+                        ra = target.ra
+                        dec = target.dec
+                    },
+                    label = { Text(target.name) }
+                )
             }
         }
-        OutlinedTextField(ra, { ra = it }, label = { Text("RA HH:MM:SS") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(dec, { dec = it }, label = { Text("DEC ±DD*MM:SS") }, modifier = Modifier.fillMaxWidth())
-        Button(onClick = { vm.goto(ra, dec) }, enabled = ra.isNotBlank() && dec.isNotBlank() && !vm.busy, modifier = Modifier.fillMaxWidth()) {
-            Text("GOTO")
+
+        OutlinedTextField(
+            value = ra,
+            onValueChange = { ra = it },
+            label = { Text("RA HH:MM:SS") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = dec,
+            onValueChange = { dec = it },
+            label = { Text("DEC +DD*MM:SS") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Button(
+            onClick = { vm.goto(ra, dec) },
+            enabled =
+                s.connected &&
+                !s.parked &&
+                ra.isNotBlank() &&
+                dec.isNotBlank() &&
+                !vm.busy,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("LANCER GOTO")
         }
-        vm.message?.let { Text(it) }
+
+        OutlinedButton(
+            onClick = { vm.stopAll() },
+            enabled = s.connected,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("STOP GOTO")
+        }
+
+        if (s.parked) {
+            Text(
+                "Monture parkee : faire UNPARK dans Control.",
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        vm.message?.let {
+            Text(it, fontWeight = FontWeight.Bold)
+        }
     }
 }

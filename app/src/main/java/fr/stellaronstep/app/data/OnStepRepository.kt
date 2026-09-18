@@ -10,173 +10,190 @@ import kotlinx.coroutines.delay
 class OnStepRepository(
     private val client: OnStepTcpClient
 ) {
-
     suspend fun readStatus(): MountStatus {
-
-        val status =
-            client.queryHash(":GU#")
-
-        val ra =
-            client.queryHash(":GR#")
-
-        val dec =
-            client.queryHash(":GD#")
-
-        return OnStepStatusParser.parse(
-            status,
-            ra,
-            dec
-        )
+        val status = client.queryHash(":GU#")
+        val ra = client.queryHash(":GR#")
+        val dec = client.queryHash(":GD#")
+        return OnStepStatusParser.parse(status, ra, dec)
     }
 
-    suspend fun setSlewRate(
-        rate: SlewRate
-    ) {
-        client.send(
-            rate.command
-        )
+    suspend fun setSlewRate(rate: SlewRate) {
+        client.send(rate.command)
     }
 
     suspend fun startMove(
         direction: SlewDirection,
         rate: SlewRate
     ) {
-        /*
-         * OnStep utilise la vitesse courante pour :Mn/:Ms/:Me/:Mw.
-         * On renvoie donc explicitement le preset a chaque mouvement.
-         */
-        client.send(
-            rate.command
-        )
-
-        /*
-         * Petite garde entre les deux connexions TCP.
-         */
+        client.send(rate.command)
         delay(80)
-
-        client.send(
-            direction.startCommand
-        )
+        client.send(direction.startCommand)
     }
 
-    suspend fun stopMove(
-        direction: SlewDirection
-    ) {
-        client.send(
-            direction.stopCommand
-        )
+    suspend fun stopMove(direction: SlewDirection) {
+        client.send(direction.stopCommand)
     }
 
     suspend fun emergencyStop() {
-        client.send(
-            ":Q#"
-        )
+        client.send(":Q#")
     }
 
-    suspend fun tracking(
-        enabled: Boolean
-    ): Boolean =
-        client.queryByte(
-            if (enabled) {
-                ":Te#"
-            } else {
-                ":Td#"
-            }
-        ) == "1"
+    suspend fun tracking(enabled: Boolean): Boolean =
+        client.queryByte(if (enabled) ":Te#" else ":Td#") == "1"
 
     suspend fun park(): Boolean =
-        client.queryByte(
-            ":hP#"
-        ) == "1"
+        client.queryByte(":hP#") == "1"
 
     suspend fun unpark(): Boolean =
-        client.queryByte(
-            ":hR#"
-        ) == "1"
+        client.queryByte(":hR#") == "1"
 
-    suspend fun goHome() {
-        client.send(
-            ":hC#"
-        )
+    suspend fun goHome(): String {
+        val before = readStatus()
+
+        if (before.atHome) {
+            return "HOME deja atteint"
+        }
+
+        if (before.parked) {
+            if (!unpark()) {
+                return "HOME impossible : UNPARK refuse"
+            }
+            delay(350)
+        }
+
+        runCatching { tracking(false) }
+        delay(150)
+
+        client.send(":hC#")
+
+        repeat(6) {
+            delay(500)
+            val live = runCatching { readStatus() }.getOrNull()
+            if (live?.atHome == true) {
+                return "HOME atteint"
+            }
+        }
+
+        return "HOME commande envoye - attente du marqueur H"
     }
 
     suspend fun goto(
         ra: String,
         dec: String
     ): String {
+        val cleanRa = normalizeRa(ra)
+            ?: return "RA invalide - format HH:MM:SS"
 
-        val raAccepted =
-            client.queryByte(
-                ":Sr${ra.trim()}#"
-            ) == "1"
+        val cleanDec = normalizeDec(dec)
+            ?: return "DEC invalide - format +DD*MM:SS"
 
-        val decAccepted =
-            client.queryByte(
-                ":Sd${dec.trim()}#"
-            ) == "1"
+        val before = readStatus()
 
-        if (
-            !raAccepted ||
-            !decAccepted
-        ) {
-            return "Coordonnees refusees"
+        if (before.parked) {
+            return "GOTO refuse : monture parkee - faire UNPARK"
         }
 
-        return when (
-            val result =
-                client.queryByte(":MS#")
-        ) {
-            "0" ->
-                "GOTO accepte"
+        if (!before.tracking) {
+            val trackingAccepted = tracking(true)
+            if (!trackingAccepted) {
+                return "GOTO refuse : impossible d'activer le suivi"
+            }
+            delay(250)
+        }
 
-            "1" ->
-                "Cible sous l'horizon"
+        val raReply = client.queryByte(":Sr$cleanRa#")
+        if (raReply != "1") {
+            return "GOTO refuse : RA non acceptee (Sr=$raReply)"
+        }
 
-            "2" ->
-                "Cible au-dessus de la limite haute"
+        delay(80)
 
-            "3" ->
-                "Controleur en veille"
+        val decReply = client.queryByte(":Sd$cleanDec#")
+        if (decReply != "1") {
+            return "GOTO refuse : DEC non acceptee (Sd=$decReply)"
+        }
 
-            "4" ->
-                "Monture parkee"
+        delay(80)
 
-            "5" ->
-                "GOTO deja en cours"
+        val code = client.queryByte(":MS#")
 
-            "6" ->
-                "Cible hors limites"
+        val text = when (code) {
+            "0" -> "GOTO accepte"
+            "1" -> "GOTO refuse : cible sous l'horizon"
+            "2" -> "GOTO refuse : cible au-dessus de la limite haute"
+            "3" -> "GOTO refuse : controleur en veille"
+            "4" -> "GOTO refuse : monture parkee"
+            "5" -> "GOTO refuse : GOTO deja en cours"
+            "6" -> "GOTO refuse : cible hors limites"
+            "7" -> "GOTO refuse : defaut materiel"
+            "8" -> "GOTO refuse : monture deja en mouvement"
+            else -> "GOTO : reponse OnStep $code"
+        }
 
-            "7" ->
-                "Defaut materiel"
+        if (code != "0") {
+            return text
+        }
 
-            "8" ->
-                "Monture deja en mouvement"
+        delay(400)
 
-            else ->
-                "Reponse OnStep: $result"
+        val live = runCatching { readStatus() }.getOrNull()
+
+        return if (live?.slewing == true) {
+            "$text - mouvement en cours"
+        } else {
+            "$text - commande recue, verifier mouvement"
         }
     }
 
-    suspend fun startAlignment(
-        stars: Int
-    ): Boolean =
-        client.queryByte(
-            ":A${stars.coerceIn(1, 9)}#"
-        ) == "1"
+    private fun normalizeRa(value: String): String? {
+        val m = Regex("""^(\d{1,2}):(\d{1,2}):(\d{1,2})$""")
+            .matchEntire(value.trim().replace(" ", ""))
+            ?: return null
+
+        val h = m.groupValues[1].toIntOrNull() ?: return null
+        val min = m.groupValues[2].toIntOrNull() ?: return null
+        val sec = m.groupValues[3].toIntOrNull() ?: return null
+
+        if (h !in 0..23 || min !in 0..59 || sec !in 0..59) {
+            return null
+        }
+
+        return "%02d:%02d:%02d".format(h, min, sec)
+    }
+
+    private fun normalizeDec(value: String): String? {
+        val clean = value.trim()
+            .replace(" ", "")
+            .replace("deg", "*")
+            .replace("d", "*")
+            .replace("'", ":")
+            .replace("\"", "")
+
+        val m = Regex("""^([+-]?)(\d{1,2})\*(\d{1,2}):(\d{1,2})$""")
+            .matchEntire(clean)
+            ?: return null
+
+        val sign = if (m.groupValues[1] == "-") "-" else "+"
+        val deg = m.groupValues[2].toIntOrNull() ?: return null
+        val min = m.groupValues[3].toIntOrNull() ?: return null
+        val sec = m.groupValues[4].toIntOrNull() ?: return null
+
+        if (deg !in 0..90 || min !in 0..59 || sec !in 0..59) {
+            return null
+        }
+
+        return "%s%02d*%02d:%02d".format(sign, deg, min, sec)
+    }
+
+    suspend fun startAlignment(stars: Int): Boolean =
+        client.queryByte(":A${stars.coerceIn(1, 9)}#") == "1"
 
     suspend fun alignmentStatus(): String =
-        client.queryHash(
-            ":A?#"
-        )
+        client.queryHash(":A?#")
 
     suspend fun acceptAlignmentStar(): Boolean =
-        client.queryByte(
-            ":A+#"
-        ) == "1"
+        client.queryByte(":A+#") == "1"
 
     suspend fun saveAlignment(): Boolean =
-        client.queryByte(
-            ":AW#"
-        ) == "1"
+        client.queryByte(":AW#") == "1"
 }

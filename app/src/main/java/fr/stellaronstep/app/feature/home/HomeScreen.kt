@@ -24,8 +24,12 @@ import fr.stellaronstep.app.R
 import fr.stellaronstep.app.ui.theme.Surface
 
 @Composable
-fun HomeScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
+fun HomeScreen(
+    vm: AppViewModel,
+    modifier: Modifier = Modifier
+) {
     val s = vm.status
+
     Column(
         modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -37,7 +41,7 @@ fun HomeScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
             contentScale = ContentScale.Fit
         )
 
-        Text("Monture OnStep", fontWeight = FontWeight.Bold)
+        Text("Monture OnStepX", fontWeight = FontWeight.Bold)
 
         Card(
             colors = CardDefaults.cardColors(containerColor = Surface),
@@ -47,18 +51,21 @@ fun HomeScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
                 Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(if (s.connected) "â— ConnectÃ©" else "â—‹ DÃ©connectÃ©")
-                Text("RA  ${s.ra ?: "â€”"}")
-                Text("DEC ${s.dec ?: "â€”"}")
                 Text(
-                    "Suivi: ${if (s.tracking) "ON" else "OFF"}   " +
-                        "GOTO: ${if (s.slewing) "EN COURS" else "IDLE"}"
+                    if (s.connected) "CONNECTE" else "DECONNECTE",
+                    fontWeight = FontWeight.Bold
                 )
-                Text(
-                    "Park: ${if (s.parked) "OUI" else "NON"}   " +
-                        "Home: ${if (s.atHome) "OUI" else "NON"}"
-                )
-                if (s.pierSide != null) Text("Pier side: ${s.pierSide}")
+                Text("IP : ${vm.config.host}:${vm.config.port}")
+                Text("RA  : ${s.ra ?: "--"}")
+                Text("DEC : ${s.dec ?: "--"}")
+                Text("Suivi : ${if (s.tracking) "ON" else "OFF"}")
+                Text("GOTO : ${if (s.slewing) "EN COURS" else "IDLE"}")
+                Text("Park : ${if (s.parked) "OUI" else "NON"}")
+                Text("Home : ${if (s.atHome) "OUI" else "NON"}")
+
+                if (s.pierSide != null) {
+                    Text("Pier side : ${s.pierSide}")
+                }
             }
         }
 
