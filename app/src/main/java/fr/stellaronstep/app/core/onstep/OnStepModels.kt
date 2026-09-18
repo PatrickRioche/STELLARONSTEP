@@ -1,7 +1,7 @@
 package fr.stellaronstep.app.core.onstep
 
 data class OnStepConnectionConfig(
-    val host: String = "192.168.1.46",
+    val host: String = "192.168.0.1",
     val port: Int = 9999,
     val timeoutMs: Int = 1800
 )
@@ -20,14 +20,21 @@ data class MountStatus(
     val dec: String? = null
 )
 
-enum class SlewDirection(val startCommand: String, val stopCommand: String) {
-    NORTH(":Mn#", ":Qn#"),
-    SOUTH(":Ms#", ":Qs#"),
-    EAST(":Me#", ":Qe#"),
-    WEST(":Mw#", ":Qw#")
+enum class SlewDirection(
+    val label: String,
+    val startCommand: String,
+    val stopCommand: String
+) {
+    NORTH("Nord", ":Mn#", ":Qn#"),
+    SOUTH("Sud", ":Ms#", ":Qs#"),
+    EAST("Est", ":Me#", ":Qe#"),
+    WEST("Ouest", ":Mw#", ":Qw#")
 }
 
-enum class SlewRate(val label: String, val command: String) {
+enum class SlewRate(
+    val label: String,
+    val command: String
+) {
     GUIDE("Guide", ":RG#"),
     CENTER("Center", ":RC#"),
     MOVE("Move", ":RM#"),

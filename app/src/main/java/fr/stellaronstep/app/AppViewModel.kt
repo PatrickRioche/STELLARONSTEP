@@ -18,36 +18,90 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-class AppViewModel(application: Application) : AndroidViewModel(application) {
-    private val settings = SettingsStore(application)
+class AppViewModel(
+    application: Application
+) : AndroidViewModel(application) {
 
-    var config by mutableStateOf(settings.load())
-        private set
-    var status by mutableStateOf(MountStatus())
-        private set
-    var message by mutableStateOf<String?>(null)
-        private set
-    var busy by mutableStateOf(false)
+    private val settings =
+        SettingsStore(application)
+
+    var config by
+        mutableStateOf(
+            settings.load()
+        )
         private set
 
-    private val client = OnStepTcpClient { config }
-    private val repository = OnStepRepository(client)
-    private var pollingJob: Job? = null
+    var status by
+        mutableStateOf(
+            MountStatus()
+        )
+        private set
 
-    fun updateConfig(value: OnStepConnectionConfig) {
+    var message by
+        mutableStateOf<String?>(
+            null
+        )
+        private set
+
+    var busy by
+        mutableStateOf(false)
+        private set
+
+    var selectedRate by
+        mutableStateOf(
+            SlewRate.SLEW
+        )
+        private set
+
+    var movingDirection by
+        mutableStateOf<SlewDirection?>(
+            null
+        )
+        private set
+
+    private val client =
+        OnStepTcpClient {
+            config
+        }
+
+    private val repository =
+        OnStepRepository(
+            client
+        )
+
+    private var pollingJob:
+        Job? = null
+
+    fun updateConfig(
+        value: OnStepConnectionConfig
+    ) {
         config = value
         settings.save(value)
-        message = "Configuration enregistrée"
+
+        message =
+            "Configuration enregistree"
     }
 
     fun connectAndPoll() {
-        if (pollingJob?.isActive == true) return
-        pollingJob = viewModelScope.launch {
-            while (isActive) {
-                refreshStatus(silent = true)
-                delay(1200)
-            }
+
+        if (
+            pollingJob?.isActive == true
+        ) {
+            return
         }
+
+        pollingJob =
+            viewModelScope.launch {
+
+                while (isActive) {
+
+                    refreshStatus(
+                        silent = true
+                    )
+
+                    delay(1200)
+                }
+            }
     }
 
     fun stopPolling() {
@@ -55,35 +109,233 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         pollingJob = null
     }
 
-    fun refreshStatus(silent: Boolean = false) = action(silent) {
-        status = repository.readStatus()
-        if (!silent) message = "État actualisé"
+    fun refreshStatus(
+        silent: Boolean = false
+    ) = action(silent) {
+
+        status =
+            repository.readStatus()
+
+        if (!silent) {
+            message =
+                "Etat actualise"
+        }
     }
 
-    fun setRate(rate: SlewRate) = action { repository.setSlewRate(rate); message = "Vitesse: ${rate.label}" }
-    fun startMove(direction: SlewDirection) = action { repository.startMove(direction) }
-    fun stopMove(direction: SlewDirection) = action { repository.stopMove(direction) }
-    fun stopAll() = action { repository.emergencyStop(); message = "Mouvement arrêté" }
-    fun tracking(enabled: Boolean) = action { repository.tracking(enabled); refreshStatus(silent = true) }
-    fun park() = action { repository.park(); message = "Park demandé" }
-    fun unpark() = action { repository.unpark(); message = "Unpark demandé" }
-    fun goHome() = action { repository.goHome(); message = "Retour HOME demandé" }
-    fun goto(ra: String, dec: String) = action { message = repository.goto(ra, dec) }
-    fun startAlignment(stars: Int) = action { message = if (repository.startAlignment(stars)) "Alignement $stars étoile(s) démarré" else "Alignement refusé" }
-    fun alignmentStatus() = action { message = "Alignement: ${repository.alignmentStatus()}" }
-    fun acceptAlignmentStar() = action { message = if (repository.acceptAlignmentStar()) "Étoile acceptée" else "Correction refusée" }
-    fun saveAlignment() = action { message = if (repository.saveAlignment()) "Modèle d'alignement sauvegardé" else "Sauvegarde refusée" }
+    fun setRate(
+        rate: SlewRate
+    ) {
+        selectedRate =
+            rate
 
-    private fun action(silent: Boolean = false, block: suspend () -> Unit) {
+        action {
+            repository.setSlewRate(
+                rate
+            )
+
+            message =
+                "Vitesse : ${rate.label}"
+        }
+    }
+
+    fun startMove(
+        direction: SlewDirection
+    ) {
+
+        if (!status.connected) {
+            message =
+                "Monture non connectee"
+            return
+        }
+
+        if (status.parked) {
+            message =
+                "Mouvement refuse : monture parkee"
+            return
+        }
+
+        movingDirection =
+            direction
+
+        action {
+            repository.startMove(
+                direction,
+                selectedRate
+            )
+
+            message =
+                "${direction.label} - ${selectedRate.label}"
+        }
+    }
+
+    fun stopMove(
+        direction: SlewDirection
+    ) = action {
+
+        repository.stopMove(
+            direction
+        )
+
+        if (
+            movingDirection ==
+                direction
+        ) {
+            movingDirection =
+                null
+        }
+
+        message =
+            "Mouvement arrete"
+    }
+
+    fun stopAll() {
+
+        movingDirection =
+            null
+
+        action {
+            repository.emergencyStop()
+
+            message =
+                "STOP GLOBAL envoye"
+        }
+    }
+
+    fun tracking(
+        enabled: Boolean
+    ) = action {
+
+        repository.tracking(
+            enabled
+        )
+
+        status =
+            repository.readStatus()
+    }
+
+    fun park() = action {
+        repository.park()
+
+        message =
+            "Park demande"
+    }
+
+    fun unpark() = action {
+        repository.unpark()
+
+        message =
+            "Unpark demande"
+
+        delay(300)
+
+        status =
+            repository.readStatus()
+    }
+
+    fun goHome() = action {
+        repository.goHome()
+
+        message =
+            "Retour HOME demande"
+    }
+
+    fun goto(
+        ra: String,
+        dec: String
+    ) = action {
+
+        message =
+            repository.goto(
+                ra,
+                dec
+            )
+    }
+
+    fun startAlignment(
+        stars: Int
+    ) = action {
+
+        message =
+            if (
+                repository.startAlignment(
+                    stars
+                )
+            ) {
+                "Alignement $stars etoile(s) demarre"
+            } else {
+                "Alignement refuse"
+            }
+    }
+
+    fun alignmentStatus() =
+        action {
+
+            message =
+                "Alignement: ${
+                    repository.alignmentStatus()
+                }"
+        }
+
+    fun acceptAlignmentStar() =
+        action {
+
+            message =
+                if (
+                    repository.acceptAlignmentStar()
+                ) {
+                    "Etoile acceptee"
+                } else {
+                    "Correction refusee"
+                }
+        }
+
+    fun saveAlignment() =
+        action {
+
+            message =
+                if (
+                    repository.saveAlignment()
+                ) {
+                    "Modele d'alignement sauvegarde"
+                } else {
+                    "Sauvegarde refusee"
+                }
+        }
+
+    private fun action(
+        silent: Boolean = false,
+        block: suspend () -> Unit
+    ) {
+
         viewModelScope.launch {
-            if (!silent) busy = true
+
+            if (!silent) {
+                busy = true
+            }
+
             try {
                 block()
-            } catch (e: Exception) {
-                status = status.copy(connected = false)
-                if (!silent) message = e.message ?: "Erreur OnStep"
+            } catch (
+                e: Exception
+            ) {
+                status =
+                    status.copy(
+                        connected = false
+                    )
+
+                movingDirection =
+                    null
+
+                if (!silent) {
+                    message =
+                        e.message
+                            ?: "Erreur OnStep"
+                }
             } finally {
-                if (!silent) busy = false
+
+                if (!silent) {
+                    busy = false
+                }
             }
         }
     }
