@@ -156,8 +156,47 @@ class OnStepRepository(
     suspend fun park(): Boolean =
         client.queryByte(":hP#") == "1"
 
+    suspend fun setParkPosition(): Boolean =
+        client.queryByte(":hQ#") == "1"
+
     suspend fun unpark(): Boolean =
         client.queryByte(":hR#") == "1"
+
+    suspend fun resetHome(): String {
+        /*
+         * :hF# does not move the mount.
+         * It declares the CURRENT mechanical position as HOME/cold-start.
+         */
+        client.send(":Q#")
+        delay(100)
+
+        runCatching {
+            tracking(false)
+        }
+
+        delay(100)
+
+        client.send(":hF#")
+        delay(350)
+
+        val live =
+            runCatching {
+                readStatus()
+            }.getOrNull()
+
+        val homeInfo =
+            runCatching {
+                client.queryHash(":h?#").trim()
+            }.getOrElse {
+                "N/A"
+            }
+
+        return if (live != null) {
+            "RESET HOME envoye | HOME=${if (live.atHome) "OUI" else "NON"} | h?=$homeInfo | GU=${live.raw}"
+        } else {
+            "RESET HOME envoye | h?=$homeInfo"
+        }
+    }
 
     suspend fun goHome(): String {
         val before = readStatus()

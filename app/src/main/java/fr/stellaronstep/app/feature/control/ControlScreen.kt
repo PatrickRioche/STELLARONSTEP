@@ -190,6 +190,13 @@ fun ControlScreen(
             enabled = canMove
         )
 
+        Text(
+            "DEPLACEMENTS AUTO",
+            color = Muted,
+            modifier = Modifier.align(Alignment.Start),
+            style = MaterialTheme.typography.labelLarge
+        )
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -213,6 +220,64 @@ fun ControlScreen(
                 modifier = Modifier.weight(1f)
             ) {
                 Text("UNPARK")
+            }
+        }
+
+        Text(
+            "REFERENCES",
+            color = Muted,
+            modifier = Modifier.align(Alignment.Start),
+            style = MaterialTheme.typography.labelLarge
+        )
+
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = Surface
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    "Ces commandes redefinissent les references de la monture.",
+                    color = AccentOrange,
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                Text(
+                    "RESET HOME : placer d'abord la monture physiquement en position HOME.",
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { vm.resetHome() },
+                        enabled = status.connected && !vm.busy,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("RESET HOME")
+                    }
+
+                    OutlinedButton(
+                        onClick = { vm.setParkPosition() },
+                        enabled = status.connected && !vm.busy,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("RESET PARK")
+                    }
+                }
+
+                Text(
+                    "RESET PARK : memorise la position actuelle comme position PARK.",
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
         }
 

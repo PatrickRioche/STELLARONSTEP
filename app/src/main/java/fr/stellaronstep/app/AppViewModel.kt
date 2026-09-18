@@ -173,8 +173,37 @@ class AppViewModel(
     }
 
     fun park() = action {
-        repository.park()
-        message = "Park demande"
+        val ok = repository.park()
+
+        message =
+            if (ok) {
+                "PARK demande"
+            } else {
+                "PARK refuse par OnStepX"
+            }
+    }
+
+    fun setParkPosition() = action {
+        val ok =
+            repository.setParkPosition()
+
+        status =
+            repository.readStatus()
+
+        message =
+            if (ok) {
+                "RESET PARK OK - position actuelle memorisee"
+            } else {
+                "RESET PARK refuse par OnStepX"
+            }
+    }
+
+    fun resetHome() = action {
+        message =
+            repository.resetHome()
+
+        status =
+            repository.readStatus()
     }
 
     fun unpark() = action {
