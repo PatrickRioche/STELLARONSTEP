@@ -1,19 +1,28 @@
 package fr.stellaronstep.app.feature.home
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -21,6 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import fr.stellaronstep.app.AppViewModel
 import fr.stellaronstep.app.R
+import fr.stellaronstep.app.ui.theme.Muted
+import fr.stellaronstep.app.ui.theme.Success
 import fr.stellaronstep.app.ui.theme.Surface
 
 @Composable
@@ -31,33 +42,96 @@ fun HomeScreen(
     val s = vm.status
 
     Column(
-        modifier.fillMaxSize().padding(20.dp),
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Image(
             painter = painterResource(R.drawable.stellaronstep_logo),
             contentDescription = "Logo StellarOnStep",
-            modifier = Modifier.fillMaxWidth().height(150.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(112.dp),
             contentScale = ContentScale.Fit
         )
 
-        Text("Monture OnStepX", fontWeight = FontWeight.Bold)
-
         Card(
-            colors = CardDefaults.cardColors(containerColor = Surface),
+            colors = CardDefaults.cardColors(
+                containerColor = Surface
+            ),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                Modifier.padding(16.dp),
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(11.dp)
+                            .background(
+                                color = if (s.connected) {
+                                    Success
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                },
+                                shape = CircleShape
+                            )
+                    )
+
+                    Text(
+                        if (s.connected) {
+                            "OnStepX connecte"
+                        } else {
+                            "OnStepX deconnecte"
+                        },
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
+
+                Text(
+                    "${vm.config.host}:${vm.config.port}",
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = Surface
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    if (s.connected) "CONNECTE" else "DECONNECTE",
-                    fontWeight = FontWeight.Bold
+                    "POSITION MONTURE",
+                    color = Muted,
+                    style = MaterialTheme.typography.labelLarge
                 )
-                Text("IP : ${vm.config.host}:${vm.config.port}")
-                Text("RA  : ${s.ra ?: "--"}")
-                Text("DEC : ${s.dec ?: "--"}")
+
+                Text(
+                    "RA   ${s.ra ?: "--"}",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Text(
+                    "DEC  ${s.dec ?: "--"}",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(Modifier.height(2.dp))
+
                 Text("Suivi : ${if (s.tracking) "ON" else "OFF"}")
                 Text("GOTO : ${if (s.slewing) "EN COURS" else "IDLE"}")
                 Text("Park : ${if (s.parked) "OUI" else "NON"}")
@@ -69,23 +143,38 @@ fun HomeScreen(
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             Button(
                 onClick = { vm.refreshStatus() },
-                enabled = !vm.busy
+                enabled = !vm.busy,
+                modifier = Modifier.weight(1f)
             ) {
                 Text("Actualiser")
             }
 
             Button(
                 onClick = { vm.tracking(!s.tracking) },
-                enabled = s.connected && !vm.busy
+                enabled = s.connected && !vm.busy,
+                modifier = Modifier.weight(1f)
             ) {
-                Text(if (s.tracking) "Stop suivi" else "Suivi ON")
+                Text(
+                    if (s.tracking) {
+                        "Stop suivi"
+                    } else {
+                        "Suivi ON"
+                    }
+                )
             }
         }
 
-        Spacer(Modifier.height(4.dp))
-        vm.message?.let { Text(it) }
+        vm.message?.let {
+            Text(
+                it,
+                color = Muted
+            )
+        }
     }
 }

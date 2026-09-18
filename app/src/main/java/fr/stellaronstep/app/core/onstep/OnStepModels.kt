@@ -56,8 +56,8 @@ enum class SlewRate(
     val label: String,
     val command: String
 ) {
-    GUIDE("Guide", ":RG#"),
-    CENTER("Center", ":RC#"),
-    MOVE("Move", ":RM#"),
-    SLEW("Slew", ":RS#")
+    GUIDE("Guidage", ":RG#"),
+    CENTER("Centrage", ":RC#"),
+    MOVE("Deplacement", ":RM#"),
+    SLEW("Rapide", ":RS#")
 }

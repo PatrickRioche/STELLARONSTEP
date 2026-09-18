@@ -1,8 +1,9 @@
 package fr.stellaronstep.app.feature.control
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,9 +11,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -26,130 +31,153 @@ import androidx.compose.ui.unit.dp
 import fr.stellaronstep.app.AppViewModel
 import fr.stellaronstep.app.core.onstep.SlewDirection
 import fr.stellaronstep.app.core.onstep.SlewRate
+import fr.stellaronstep.app.ui.theme.AccentOrange
 import fr.stellaronstep.app.ui.theme.Danger
+import fr.stellaronstep.app.ui.theme.Muted
+import fr.stellaronstep.app.ui.theme.Success
+import fr.stellaronstep.app.ui.theme.Surface
+import fr.stellaronstep.app.ui.theme.SurfaceRaised
 
 @Composable
 fun ControlScreen(
     vm: AppViewModel,
     modifier: Modifier = Modifier
 ) {
-
-    val status =
-        vm.status
-
+    val status = vm.status
     val canMove =
         status.connected &&
             !status.parked
 
     Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(20.dp),
-        horizontalAlignment =
-            Alignment.CenterHorizontally,
-        verticalArrangement =
-            Arrangement.spacedBy(14.dp)
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-
         Text(
-            "CONTROL",
-            fontWeight =
-                FontWeight.Bold
+            "CONTROLE MONTURE",
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleLarge
         )
 
-        Text(
-            if (status.connected) {
-                "OnStepX connecte"
-            } else {
-                "OnStepX deconnecte"
-            }
-        )
-
-        if (status.parked) {
-            Text(
-                "PARK actif - UNPARK requis",
-                color =
-                    Danger,
-                fontWeight =
-                    FontWeight.Bold
-            )
-        }
-
-        Text(
-            "Vitesse : ${vm.selectedRate.label}"
-        )
-
-        Row(
-            horizontalArrangement =
-                Arrangement.spacedBy(8.dp)
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = Surface
+            ),
+            modifier = Modifier.fillMaxWidth()
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(
+                            color = if (status.connected) {
+                                Success
+                            } else {
+                                Danger
+                            },
+                            shape = CircleShape
+                        )
+                )
 
-            SlewRate.entries.forEach {
-                rate ->
-
-                if (
-                    vm.selectedRate ==
-                        rate
+                Column(
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Button(
-                        onClick = {
-                            vm.setRate(
-                                rate
-                            )
-                        }
-                    ) {
-                        Text(
-                            rate.label
-                        )
-                    }
-                } else {
-                    OutlinedButton(
-                        onClick = {
-                            vm.setRate(
-                                rate
-                            )
-                        }
-                    ) {
-                        Text(
-                            rate.label
-                        )
-                    }
+                    Text(
+                        if (status.connected) {
+                            "OnStepX connecte"
+                        } else {
+                            "OnStepX deconnecte"
+                        },
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Text(
+                        if (status.parked) {
+                            "PARK actif - UNPARK requis"
+                        } else {
+                            "Pret au mouvement"
+                        },
+                        color = if (status.parked) Danger else Muted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
+
+                Text(
+                    vm.selectedRate.label,
+                    color = AccentOrange,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
         Text(
-            "Maintenir une direction pour deplacer la monture."
+            "VITESSE",
+            color = Muted,
+            modifier = Modifier.align(Alignment.Start),
+            style = MaterialTheme.typography.labelLarge
+        )
+
+        RateRow(
+            first = SlewRate.GUIDE,
+            second = SlewRate.CENTER,
+            vm = vm
+        )
+
+        RateRow(
+            first = SlewRate.MOVE,
+            second = SlewRate.SLEW,
+            vm = vm
+        )
+
+        Text(
+            "Maintenir une direction pour deplacer la monture",
+            color = Muted,
+            style = MaterialTheme.typography.bodySmall
         )
 
         HoldDirectionButton(
             label = "N",
-            direction =
-                SlewDirection.NORTH,
+            direction = SlewDirection.NORTH,
             vm = vm,
             enabled = canMove
         )
 
         Row(
-            horizontalArrangement =
-                Arrangement.spacedBy(30.dp)
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-
             HoldDirectionButton(
                 label = "W",
-                direction =
-                    SlewDirection.WEST,
+                direction = SlewDirection.WEST,
                 vm = vm,
                 enabled = canMove
             )
 
+            Button(
+                onClick = { vm.stopAll() },
+                modifier = Modifier.size(86.dp),
+                shape = CircleShape
+            ) {
+                Text(
+                    "STOP",
+                    color = Danger,
+                    fontWeight = FontWeight.Black
+                )
+            }
+
             HoldDirectionButton(
                 label = "E",
-                direction =
-                    SlewDirection.EAST,
+                direction = SlewDirection.EAST,
                 vm = vm,
                 enabled = canMove
             )
@@ -157,80 +185,117 @@ fun ControlScreen(
 
         HoldDirectionButton(
             label = "S",
-            direction =
-                SlewDirection.SOUTH,
+            direction = SlewDirection.SOUTH,
             vm = vm,
             enabled = canMove
         )
 
-        Button(
-            onClick = {
-                vm.stopAll()
-            },
-            modifier =
-                Modifier.fillMaxWidth()
-        ) {
-            Text(
-                "STOP GLOBAL",
-                color =
-                    Danger,
-                fontWeight =
-                    FontWeight.Bold
-            )
-        }
-
         Row(
-            horizontalArrangement =
-                Arrangement.spacedBy(10.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-
             OutlinedButton(
-                onClick = {
-                    vm.goHome()
-                }
+                onClick = { vm.goHome() },
+                modifier = Modifier.weight(1f)
             ) {
                 Text("HOME")
             }
 
             OutlinedButton(
-                onClick = {
-                    vm.park()
-                }
+                onClick = { vm.park() },
+                modifier = Modifier.weight(1f)
             ) {
                 Text("PARK")
             }
 
             OutlinedButton(
-                onClick = {
-                    vm.unpark()
-                }
+                onClick = { vm.unpark() },
+                modifier = Modifier.weight(1f)
             ) {
                 Text("UNPARK")
             }
         }
 
-        vm.movingDirection?.let {
-            direction ->
-
-            Text(
-                "Mouvement : ${direction.label} / ${vm.selectedRate.label}",
-                fontWeight =
-                    FontWeight.Bold
-            )
+        vm.movingDirection?.let { direction ->
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = SurfaceRaised
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Mouvement : ${direction.label} / ${vm.selectedRate.label}",
+                    modifier = Modifier.padding(12.dp),
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
 
         vm.message?.let {
-            Text(it)
+            Text(
+                it,
+                color = Muted,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
-        if (
-            status.raw.isNotBlank()
-        ) {
+        if (status.raw.isNotBlank()) {
             Text(
                 "GU: ${status.raw}",
-                style =
-                    MaterialTheme.typography.bodySmall
+                color = Muted,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth()
             )
+        }
+    }
+}
+
+@Composable
+private fun RateRow(
+    first: SlewRate,
+    second: SlewRate,
+    vm: AppViewModel
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        RateButton(
+            rate = first,
+            vm = vm,
+            modifier = Modifier.weight(1f)
+        )
+
+        RateButton(
+            rate = second,
+            vm = vm,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun RateButton(
+    rate: SlewRate,
+    vm: AppViewModel,
+    modifier: Modifier = Modifier
+) {
+    if (vm.selectedRate == rate) {
+        Button(
+            onClick = { vm.setRate(rate) },
+            modifier = modifier
+        ) {
+            Text(
+                rate.label,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    } else {
+        OutlinedButton(
+            onClick = { vm.setRate(rate) },
+            modifier = modifier
+        ) {
+            Text(rate.label)
         }
     }
 }
@@ -242,77 +307,58 @@ private fun HoldDirectionButton(
     vm: AppViewModel,
     enabled: Boolean
 ) {
-
     val background =
         if (enabled) {
-            MaterialTheme.colorScheme.primary
-        } else {
             MaterialTheme.colorScheme.surfaceVariant
+        } else {
+            MaterialTheme.colorScheme.surface
         }
 
     val foreground =
         if (enabled) {
-            MaterialTheme.colorScheme.onPrimary
+            MaterialTheme.colorScheme.primary
         } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
+            Muted
         }
 
     Surface(
-        modifier =
-            Modifier
-                .size(88.dp)
-                .pointerInput(
-                    direction,
-                    enabled,
-                    vm.selectedRate
-                ) {
-
-                    detectTapGestures(
-                        onPress = {
-
-                            if (!enabled) {
-                                return@detectTapGestures
-                            }
-
-                            vm.startMove(
-                                direction
-                            )
-
-                            try {
-                                tryAwaitRelease()
-                            } finally {
-                                vm.stopMove(
-                                    direction
-                                )
-                            }
+        modifier = Modifier
+            .size(78.dp)
+            .pointerInput(
+                direction,
+                enabled,
+                vm.selectedRate
+            ) {
+                detectTapGestures(
+                    onPress = {
+                        if (!enabled) {
+                            return@detectTapGestures
                         }
-                    )
-                },
-        shape =
-            RoundedCornerShape(18.dp),
-        color =
-            background,
-        contentColor =
-            foreground,
-        tonalElevation =
-            4.dp
+
+                        vm.startMove(direction)
+
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            vm.stopMove(direction)
+                        }
+                    }
+                )
+            },
+        shape = RoundedCornerShape(22.dp),
+        color = background,
+        contentColor = foreground,
+        tonalElevation = 3.dp
     ) {
-
         Column(
-            modifier =
-                Modifier.fillMaxSize(),
-            verticalArrangement =
-                Arrangement.Center,
-            horizontalAlignment =
-                Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Text(
                 label,
-                style =
-                    MaterialTheme.typography.headlineMedium,
-                fontWeight =
-                    FontWeight.Bold
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Black
             )
         }
     }
