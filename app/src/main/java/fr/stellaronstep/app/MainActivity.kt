@@ -1,0 +1,17 @@
+package fr.stellaronstep.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import fr.stellaronstep.app.ui.theme.StellarOnStepTheme
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            StellarOnStepTheme {
+                StellarOnStepApp()
+            }
+        }
+    }
+}

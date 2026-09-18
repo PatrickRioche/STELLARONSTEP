@@ -1,56 +1,204 @@
-# OnStepPilot
+# StellarOnStep
 
-Application Android Kotlin / Jetpack Compose pour piloter simplement une monture **OnStep / OnStepX**.
+**StellarOnStep** est une application Android permettant de piloter simplement une monture astronomique équipée de **OnStep / OnStepX**.
 
-## MVP 0.1
+L'application est développée en **Kotlin** avec **Jetpack Compose** et communique directement avec OnStep.
 
-Navigation à cinq écrans : **Home**, **Control**, **Goto**, **Align**, **Config**.
+## Interface
 
-- connexion directe TCP à OnStep ;
-- lecture RA/DEC et état `:GU#` ;
-- pad N/S/E/W et vitesses de déplacement ;
-- tracking ON/OFF, STOP global, HOME, PARK, UNPARK ;
-- GOTO RA/DEC et quelques cibles rapides ;
-- séquence d'alignement OnStep ;
-- persistance de l'adresse IP / port ;
-- tests du parseur de statut ;
-- CI GitHub Actions.
+StellarOnStep est organisé autour de cinq écrans principaux.
 
-## Origine
+### Home
 
-Le design fonctionnel du GOTO/Ciel est prévu pour réutiliser les éléments déjà validés dans **PatrickRioche/STELLARPILOT**, particulièrement `SkyScreen`, `SkyViewModel` et le catalogue de cibles, tout en retirant la dépendance au serveur Raspberry/FastAPI.
+- connexion OnStep ;
+- coordonnées RA / DEC ;
+- état du tracking ;
+- état HOME ;
+- état PARK ;
+- actualisation de la monture.
 
-## Environnement
+### Control
 
-- Android Studio récent
-- JDK 17
-- Android SDK 36
+- déplacement Nord / Sud / Est / Ouest ;
+- STOP ;
+- vitesses Guide / Center / Move / Slew ;
+- tracking ON / OFF ;
+- HOME ;
+- PARK ;
+- UNPARK.
+
+### Goto
+
+- saisie RA / DEC ;
+- étoiles ;
+- objets du ciel profond ;
+- système solaire ;
+- catalogue astronomique ;
+- visibilité des objets ;
+- lancement et arrêt du GOTO.
+
+Cet écran pourra réutiliser les concepts de l'écran **Ciel & Cible** de StellarPilot.
+
+### Align
+
+- choix des étoiles ;
+- GOTO vers l'étoile ;
+- validation ;
+- alignement multi-étoiles ;
+- sauvegarde du modèle.
+
+### Config
+
+- adresse IP OnStep ;
+- port TCP ;
+- test de connexion ;
+- sauvegarde locale ;
+- informations de version.
+
+## Architecture
+
+    Android
+       |
+       v
+    StellarOnStep UI
+       |
+       v
+    ViewModel
+       |
+       v
+    Repository
+       |
+       v
+    OnStep client
+       |
+       v
+    Wi-Fi / TCP
+       |
+       v
+    OnStep / OnStepX
+       |
+       v
+    Monture
+
+Structure principale :
+
+    app/src/main/java/fr/stellaronstep/app/
+    ├── core/onstep/
+    ├── data/
+    ├── feature/home/
+    ├── feature/control/
+    ├── feature/goto/
+    ├── feature/align/
+    ├── feature/config/
+    ├── ui/theme/
+    ├── AppViewModel.kt
+    ├── MainActivity.kt
+    └── StellarOnStepApp.kt
+
+## Communication OnStep
+
+StellarOnStep communique directement avec OnStep via le protocole compatible **LX200 / OnStep**.
+
+Transport initial :
+
+    Android -> Wi-Fi -> TCP -> OnStep
+
+L'architecture permettra ensuite d'ajouter Bluetooth et USB série.
+
+## Technologies
+
 - Kotlin 2.2.0
-- AGP 8.12.0
+- Jetpack Compose
+- Material 3
+- Android SDK 36
+- minSdk 26
+- JDK 17
+- Android Gradle Plugin 8.12.0
 - Gradle 8.13
+- Kotlin Coroutines
+- JUnit
+- GitHub Actions
 
-## Important : wrapper Gradle
+## Package Android
 
-Le fichier binaire `gradle-wrapper.jar` doit être présent dans `gradle/wrapper/`. Lors de la création du dépôt, le plus simple est de copier celui du projet `STELLARPILOT/android/gradle/wrapper/gradle-wrapper.jar`, qui utilise déjà Gradle 8.13.
+    fr.stellaronstep.app
 
-## Première mise en route
+## Version
 
-1. Ouvrir le dossier dans Android Studio.
-2. Vérifier `gradle/wrapper/gradle-wrapper.jar`.
-3. Synchroniser Gradle.
-4. Dans **Config**, saisir l'IP et le port TCP réellement exposés par OnStep.
-5. Tester d'abord `Home -> Actualiser`, puis les commandes sans mouvement dangereux.
-6. Vérifier PARK/HOME et les limites de la monture avant les GOTO.
+    0.1.0
 
-## Git
+## Compilation
 
-```bash
-git init
-git add .
-git commit -m "feat: bootstrap OnStepPilot Android app"
-git branch -M main
-git remote add origin <URL_DU_NOUVEAU_REPO>
-git push -u origin main
-```
+Sous Windows :
 
-Voir `docs/ARCHITECTURE.md`, `docs/ONSTEP_COMMANDS.md` et `docs/MIGRATION_STELLARPILOT.md`.
+    .\gradlew.bat assembleDebug
+
+Tests :
+
+    .\gradlew.bat test
+
+## StellarPilot
+
+StellarOnStep est indépendant mais pourra réutiliser certains concepts du projet StellarPilot :
+
+https://github.com/PatrickRioche/STELLARPILOT
+
+Notamment :
+
+- SkyScreen ;
+- SkyViewModel ;
+- catalogue de cibles ;
+- calcul des objets visibles ;
+- sélection des étoiles d'alignement.
+
+StellarOnStep fonctionnera directement avec OnStep et ne dépendra pas du serveur Raspberry Pi / FastAPI de StellarPilot.
+
+## Roadmap
+
+### 0.1
+
+- [x] architecture Android
+- [x] Home / Control / Goto / Align / Config
+- [x] client TCP OnStep
+- [x] parser de statut
+- [x] stockage IP / port
+- [x] tests initiaux
+- [x] GitHub Actions
+
+### 0.2
+
+- [ ] validation sur une vraie monture OnStep
+- [ ] statut temps réel
+- [ ] contrôle manuel complet
+- [ ] STOP permanent
+- [ ] gestion robuste des erreurs réseau
+
+### 0.3
+
+- [ ] catalogue StellarPilot
+- [ ] recherche d'objets
+- [ ] visibilité des cibles
+- [ ] système solaire
+- [ ] GOTO catalogue
+
+### 0.4
+
+- [ ] assistant d'alignement avancé
+- [ ] sélection automatique des étoiles
+- [ ] modèle d'alignement OnStep
+
+### Futur
+
+- [ ] Bluetooth
+- [ ] USB
+- [ ] mode nuit
+- [ ] favoris
+- [ ] historique
+- [ ] carte du ciel
+- [ ] publication Google Play
+
+## Dépôt
+
+https://github.com/PatrickRioche/STELLARONSTEP
+
+**StellarOnStep — Android control for OnStep telescope mounts.**

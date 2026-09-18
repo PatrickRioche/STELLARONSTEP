@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "fr.onsteppilot.app"
+    namespace = "fr.stellaronstep.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "fr.onsteppilot.app"
+        applicationId = "fr.stellaronstep.app"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

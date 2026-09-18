@@ -4,9 +4,9 @@
 
     <application
         android:allowBackup="true"
-        android:label="OnStepPilot"
+        android:label="StellarOnStep"
         android:supportsRtl="true"
-        android:theme="@style/Theme.OnStepPilot"
+        android:theme="@style/Theme.StellarOnStep"
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"

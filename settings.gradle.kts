@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "OnStepPilot"
+rootProject.name = "StellarOnStep"
 include(":app")
