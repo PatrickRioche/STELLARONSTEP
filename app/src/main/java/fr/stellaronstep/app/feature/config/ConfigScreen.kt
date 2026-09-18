@@ -108,6 +108,16 @@ fun ConfigScreen(
             Text("LIRE CONFIGURATION ONSTEPX")
         }
 
+        Button(
+            onClick = {
+                vm.syncPhoneClock()
+            },
+            enabled = !vm.busy,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("SYNCHRONISER DATE / HEURE TELEPHONE")
+        }
+
         Card(
             colors =
                 CardDefaults.cardColors(
@@ -131,6 +141,16 @@ fun ConfigScreen(
                 Text("Heure locale    : ${d.localTime}")
                 Text("UTC offset      : ${d.utcOffset}")
                 Text("Temps sideral   : ${d.siderealTime}")
+                Text(
+                    "Date/heure prete : ${
+                        when (d.dateTimeReady) {
+                            "0" -> "OUI"
+                            "1" -> "NON"
+                            else -> d.dateTimeReady
+                        }
+                    }"
+                )
+                Text("Derniere erreur : ${d.lastError}")
 
                 Text("")
                 Text(
@@ -138,6 +158,9 @@ fun ConfigScreen(
                     fontWeight = FontWeight.Bold
                 )
 
+                Text("Type monture    : ${d.mountType}")
+                Text("Axe 1 deg       : ${d.axis1Deg}")
+                Text("Axe 2 deg       : ${d.axis2Deg}")
                 Text("Altitude        : ${d.altitude}")
                 Text("Azimut          : ${d.azimuth}")
                 Text("Horizon mini    : ${d.horizonLimit}")

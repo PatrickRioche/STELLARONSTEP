@@ -33,6 +33,11 @@ class OnStepRepository(
             localTime = read(":GL#"),
             utcOffset = read(":GG#"),
             siderealTime = read(":GS#"),
+            dateTimeReady = read(":GX89#"),
+            lastError = read(":GE#"),
+            mountType = read(":GXEM#"),
+            axis1Deg = read(":GX42#"),
+            axis2Deg = read(":GX43#"),
             altitude = read(":GA#"),
             azimuth = read(":GZ#"),
             horizonLimit = read(":Gh#"),
@@ -67,6 +72,79 @@ class OnStepRepository(
 
     suspend fun emergencyStop() {
         client.send(":Q#")
+    }
+
+    private suspend fun lastErrorCode(): String =
+        runCatching {
+            client.queryHash(":GE#").trim()
+        }.getOrElse {
+            "??"
+        }
+
+    private fun errorText(code: String): String =
+        when (code.padStart(2, '0')) {
+            "00" -> "aucune erreur"
+            "01" -> "echec generique"
+            "02" -> "commande inconnue"
+            "03" -> "reponse invalide"
+            "04" -> "parametre hors plage"
+            "05" -> "format de parametre invalide"
+            "08" -> "monture ni parkee ni au HOME"
+            "09" -> "monture deja parkee"
+            "10" -> "echec PARK"
+            "11" -> "monture non parkee"
+            "12" -> "aucune position PARK memorisee"
+            "13" -> "echec GOTO"
+            "15" -> "cible sous l'horizon"
+            "16" -> "cible au-dessus de la limite haute"
+            "17" -> "controleur en veille"
+            "18" -> "monture parkee"
+            "19" -> "GOTO deja actif"
+            "20" -> "hors limites configurees"
+            "21" -> "defaut materiel"
+            "22" -> "monture deja en mouvement"
+            "23" -> "erreur de slew non specifiee / autorite de position possiblement non valide"
+            "25" -> "succes explicite"
+            else -> "erreur OnStepX $code"
+        }
+
+    suspend fun syncPhoneClock(
+        date: String,
+        time: String,
+        utcOffset: String
+    ): String {
+        val offsetOk =
+            client.queryByte(":SG$utcOffset#") == "1"
+
+        delay(80)
+
+        val dateOk =
+            client.queryByte(":SC$date#") == "1"
+
+        delay(80)
+
+        val timeOk =
+            client.queryByte(":SL$time#") == "1"
+
+        delay(250)
+
+        val ready =
+            runCatching {
+                client.queryHash(":GX89#").trim()
+            }.getOrElse {
+                "?"
+            }
+
+        return if (
+            offsetOk &&
+            dateOk &&
+            timeOk &&
+            ready == "0"
+        ) {
+            "Date/heure OnStepX synchronisees avec le telephone"
+        } else {
+            "Sync horloge incomplete | SG=${if (offsetOk) "1" else "0"} SC=${if (dateOk) "1" else "0"} SL=${if (timeOk) "1" else "0"} GX89=$ready"
+        }
     }
 
     suspend fun tracking(enabled: Boolean): Boolean {
@@ -163,10 +241,6 @@ class OnStepRepository(
         client.queryByte(":hR#") == "1"
 
     suspend fun resetHome(): String {
-        /*
-         * :hF# does not move the mount.
-         * It declares the CURRENT mechanical position as HOME/cold-start.
-         */
         client.send(":Q#")
         delay(100)
 
@@ -177,7 +251,16 @@ class OnStepRepository(
         delay(100)
 
         client.send(":hF#")
-        delay(350)
+        delay(120)
+
+        val error =
+            lastErrorCode()
+
+        if (error != "00") {
+            return "RESET HOME refuse | GE=$error (${errorText(error)})"
+        }
+
+        delay(250)
 
         val live =
             runCatching {
@@ -192,12 +275,11 @@ class OnStepRepository(
             }
 
         return if (live != null) {
-            "RESET HOME envoye | HOME=${if (live.atHome) "OUI" else "NON"} | h?=$homeInfo | GU=${live.raw}"
+            "RESET HOME OK | HOME=${if (live.atHome) "OUI" else "NON"} | h?=$homeInfo | GU=${live.raw}"
         } else {
-            "RESET HOME envoye | h?=$homeInfo"
+            "RESET HOME OK | h?=$homeInfo"
         }
     }
-
     suspend fun goHome(): String {
         val before = readStatus()
         val beforeRaw = before.raw
@@ -209,48 +291,33 @@ class OnStepRepository(
                 "N/A"
             }
 
-        val date =
+        val dateReady =
             runCatching {
-                client.queryHash(":GC#").trim()
+                client.queryHash(":GX89#").trim()
             }.getOrElse {
-                "N/A"
-            }
-
-        val localTime =
-            runCatching {
-                client.queryHash(":GL#").trim()
-            }.getOrElse {
-                "N/A"
+                "?"
             }
 
         if (before.atHome) {
-            return "HOME deja atteint | h?=$homeInfo | GU=$beforeRaw"
+            return "HOME deja atteint | deplacer d'abord la monture puis retester | h?=$homeInfo | GU=$beforeRaw"
         }
 
         if (before.parked) {
             if (!unpark()) {
-                return "HOME impossible : UNPARK refuse | GU=$beforeRaw"
+                val error = lastErrorCode()
+                return "HOME impossible : UNPARK refuse | GE=$error (${errorText(error)})"
             }
-
-            delay(400)
+            delay(350)
         }
 
-        /*
-         * Ensure no manual slew/guide remains active.
-         */
         client.send(":Q#")
         delay(120)
 
-        /*
-         * HOME should start from tracking OFF.
-         * The result is deliberately not fatal here: hC may still
-         * provide the useful diagnostic state.
-         */
         runCatching {
             tracking(false)
         }
 
-        delay(150)
+        delay(120)
 
         val startStatus =
             runCatching {
@@ -263,6 +330,14 @@ class OnStepRepository(
         val startDec = startStatus.dec
 
         client.send(":hC#")
+        delay(120)
+
+        val commandError =
+            lastErrorCode()
+
+        if (commandError != "00") {
+            return "HOME refuse | GE=$commandError (${errorText(commandError)}) | GX89=$dateReady | h?=$homeInfo | GU=${startStatus.raw}"
+        }
 
         var last = startStatus
         var movementSeen = false
@@ -279,7 +354,8 @@ class OnStepRepository(
                 if (
                     live.ra != startRa ||
                     live.dec != startDec ||
-                    live.slewing
+                    live.slewing ||
+                    live.raw.contains('h')
                 ) {
                     movementSeen = true
                 }
@@ -287,15 +363,15 @@ class OnStepRepository(
                 last = live
 
                 if (live.atHome) {
-                    return "HOME atteint | h?=$homeInfo | GU=${live.raw}"
+                    return "HOME atteint | GE=00 | h?=$homeInfo | GU=${live.raw}"
                 }
             }
         }
 
         return if (movementSeen) {
-            "HOME mouvement detecte mais non termine | h?=$homeInfo | GU=${last.raw}"
+            "HOME mouvement detecte mais non termine | GE=00 | h?=$homeInfo | GU=${last.raw}"
         } else {
-            "HOME sans mouvement | h?=$homeInfo | date=$date | heure=$localTime | GU=${last.raw}"
+            "HOME accepte mais aucun mouvement detecte | GE=00 | GX89=$dateReady | h?=$homeInfo | GU=${last.raw}"
         }
     }
     suspend fun goto(
@@ -341,6 +417,10 @@ class OnStepRepository(
         delay(80)
 
         val code = client.queryByte(":MS#")
+        delay(80)
+
+        val internalError =
+            lastErrorCode()
 
         val text = when (code) {
             "0" -> "GOTO accepte"
@@ -349,14 +429,15 @@ class OnStepRepository(
             "3" -> "GOTO refuse : controleur en veille"
             "4" -> "GOTO refuse : monture parkee"
             "5" -> "GOTO refuse : GOTO deja en cours"
-            "6" -> "GOTO refuse : hors limites mecaniques/meridien/declinaison"
+            "6" -> "GOTO refuse : hors limites"
             "7" -> "GOTO refuse : defaut materiel"
             "8" -> "GOTO refuse : monture deja en mouvement"
+            "9" -> "GOTO refuse : erreur non specifiee"
             else -> "GOTO : reponse OnStep $code"
         }
 
         if (code != "0") {
-            return text
+            return "$text | MS=$code | GE=$internalError (${errorText(internalError)})"
         }
 
         delay(400)

@@ -18,6 +18,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 
 class AppViewModel(
     application: Application
@@ -93,6 +96,62 @@ class AppViewModel(
         diagnostics = repository.readDiagnostics()
         status = repository.readStatus()
         message = "Diagnostic OnStepX actualise"
+    }
+
+    fun syncPhoneClock() = action {
+        val now =
+            ZonedDateTime.now()
+
+        val date =
+            now.format(
+                DateTimeFormatter.ofPattern("MM/dd/yyyy")
+            )
+
+        val time =
+            now.format(
+                DateTimeFormatter.ofPattern("HH:mm:ss")
+            )
+
+        /*
+         * OnStep convention:
+         * UTC = local time + GG offset.
+         * Android gives local = UTC + device offset,
+         * therefore OnStep offset is the opposite sign.
+         */
+        val onStepOffsetSeconds =
+            -now.offset.totalSeconds
+
+        val absolute =
+            abs(onStepOffsetSeconds)
+
+        val hours =
+            absolute / 3600
+
+        val minutes =
+            (absolute % 3600) / 60
+
+        val sign =
+            if (onStepOffsetSeconds < 0) "-" else "+"
+
+        val utcOffset =
+            "%s%02d:%02d".format(
+                sign,
+                hours,
+                minutes
+            )
+
+        message =
+            repository.syncPhoneClock(
+                date,
+                time,
+                utcOffset
+            )
+
+        diagnostics =
+            repository.readDiagnostics()
+
+        status =
+            repository.readStatus()
     }
 
     fun setRate(rate: SlewRate) {
