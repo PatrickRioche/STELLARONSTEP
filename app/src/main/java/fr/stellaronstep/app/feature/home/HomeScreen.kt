@@ -1,5 +1,9 @@
 package fr.stellaronstep.app.feature.home
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,6 +47,27 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val s = vm.status
+    val context = LocalContext.current
+
+    val locationPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract =
+                ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions: Map<String, Boolean> ->
+            val granted =
+                permissions[
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ] == true ||
+                    permissions[
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    ] == true
+
+            if (granted) {
+                vm.initializePreferredFromPhone()
+            } else {
+                vm.syncPhoneClock()
+            }
+        }
 
     Column(
         modifier = modifier
@@ -113,6 +139,69 @@ fun HomeScreen(
             }
         }
 
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = Surface
+            ),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "DEMARRAGE ONSTEPX",
+                    color = Muted,
+                    style = MaterialTheme.typography.labelLarge
+                )
+
+                Text(
+                    "Sur un telephone avec GPS, initialiser OnStepX depuis le telephone avant RESET HOME.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Button(
+                    onClick = {
+                        val fine =
+                            context.checkSelfPermission(
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                        val coarse =
+                            context.checkSelfPermission(
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            ) == PackageManager.PERMISSION_GRANTED
+
+                        if (fine || coarse) {
+                            vm.initializePreferredFromPhone()
+                        } else {
+                            locationPermissionLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                            )
+                        }
+                    },
+                    enabled = s.connected && !vm.busy,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("INITIALISER DEPUIS LE TELEPHONE")
+                }
+
+                Text(
+                    "GPS disponible : position + date/heure/fuseau. GPS indisponible : date/heure/fuseau uniquement.",
+                    color = Muted,
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                Text(
+                    "Etape suivante : placer physiquement la monture en HOME, puis utiliser RESET HOME dans Control.",
+                    color = AccentOrange,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = Surface

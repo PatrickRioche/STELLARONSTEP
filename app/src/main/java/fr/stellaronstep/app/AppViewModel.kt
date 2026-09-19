@@ -270,6 +270,87 @@ class AppViewModel(
         status =
             repository.readStatus()
     }
+    fun initializePreferredFromPhone() = action {
+        if (!phoneLocation.hasLocationPermission()) {
+            message =
+                "Autorisation de localisation requise"
+            return@action
+        }
+
+        val now =
+            ZonedDateTime.now()
+
+        val date =
+            now.format(
+                DateTimeFormatter.ofPattern(
+                    "MM/dd/yyyy"
+                )
+            )
+
+        val time =
+            now.format(
+                DateTimeFormatter.ofPattern(
+                    "HH:mm:ss"
+                )
+            )
+
+        val onStepOffsetSeconds =
+            -now.offset.totalSeconds
+
+        val absolute =
+            abs(onStepOffsetSeconds)
+
+        val hours =
+            absolute / 3600
+
+        val minutes =
+            (absolute % 3600) / 60
+
+        val sign =
+            if (onStepOffsetSeconds < 0) {
+                "-"
+            } else {
+                "+"
+            }
+
+        val utcOffset =
+            "%s%02d:%02d".format(
+                sign,
+                hours,
+                minutes
+            )
+
+        val location =
+            runCatching {
+                phoneLocation.currentLocation()
+            }.getOrNull()
+
+        message =
+            if (location != null) {
+                repository.initializeFromPhone(
+                    date = date,
+                    time = time,
+                    utcOffset = utcOffset,
+                    latitude = location.latitude,
+                    androidLongitude = location.longitude
+                )
+            } else {
+                val clockResult =
+                    repository.syncPhoneClock(
+                        date = date,
+                        time = time,
+                        utcOffset = utcOffset
+                    )
+
+                "GPS indisponible - position OnStepX conservee | $clockResult"
+            }
+
+        diagnostics =
+            repository.readDiagnostics()
+
+        status =
+            repository.readStatus()
+    }
     fun setRate(rate: SlewRate) {
         selectedRate = rate
 

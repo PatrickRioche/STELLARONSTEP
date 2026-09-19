@@ -64,7 +64,7 @@ fun ConfigScreen(
                     ] == true
 
             if (granted) {
-                vm.initializeFromPhone()
+                vm.initializePreferredFromPhone()
             }
         }
 
@@ -147,7 +147,7 @@ fun ConfigScreen(
                     ) == PackageManager.PERMISSION_GRANTED
 
                 if (fine || coarse) {
-                    vm.initializeFromPhone()
+                    vm.initializePreferredFromPhone()
                 } else {
                     locationPermissionLauncher.launch(
                         arrayOf(
@@ -164,7 +164,7 @@ fun ConfigScreen(
         }
 
         Text(
-            "Envoie a OnStepX la date, l'heure, le fuseau UTC et la position GPS du telephone. Ensuite placer la monture en position HOME puis utiliser RESET HOME."
+            "Methode recommandee : si le GPS est disponible, envoie position + date/heure/fuseau. Si le GPS est indisponible, synchronise seulement date/heure/fuseau. Ensuite placer physiquement la monture en HOME puis utiliser RESET HOME."
         )
 
         Button(
