@@ -1,0 +1,28 @@
+StellarOnStep V0.1.2 - astronomical data and calculation notices
+
+OpenNGC
+-------
+Source: https://github.com/mattiaverga/OpenNGC
+Pinned snapshot: v20260501 / commit 36cb178a0f69dba8bfc03a99c10512831edf1c6b
+License: CC-BY-SA-4.0
+The APK embeds NGC.csv and addendum.csv from this snapshot.
+
+Sky Map star catalogue
+----------------------
+Source: https://github.com/sky-map-team/stardroid
+Pinned commit: f606b788989a674391040fc1b2b4205e3ad5142e
+StellarPilot source manifest records these as factual/public-domain stellar catalogue data.
+
+IAU/WGSN name inventory mirror
+------------------------------
+Source mirror: https://github.com/cyschneck/iau-star-names
+Pinned commit: 8bb9c7414e045675ab89490287f5785cdafc8372
+Repository license: MIT; IAU/WGSN name attribution retained.
+
+Astronomy Engine
+----------------
+Source: https://github.com/cosinekitty/astronomy
+Version: v2.1.19
+Copyright (c) 2019-2023 Don Cross
+License: MIT
+Used locally for Sun, Moon and planet coordinates.
