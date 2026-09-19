@@ -3,7 +3,7 @@
 Ce fichier conserve les fonctions ajoutees, les comportements modifies et les bugs corriges.
 Les tags de release restent crees uniquement apres validation materielle sur la monture.
 
-## V0.1.2 - En developpement
+## V0.1.2 - 2026-09-19
 
 ### Connexion et session OnStepX
 - Session TCP OnStepX partagee entre les ecrans de l'application.
@@ -49,6 +49,9 @@ Les tags de release restent crees uniquement apres validation materielle sur la 
 - `Show app version and add MAX slew control`
 - `Fix startup park control states`
 
+### Validation release
+- Validation materielle V0.1.2 confirmee sur le telephone A55 et la monture OnStepX.
+- Cette version est promue de `dev` vers `main` et taguee `V0.1.2`.
 ## V0.1.1 - Stable
 - Version stable actuellement conservee sur `main`.
 
