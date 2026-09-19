@@ -114,7 +114,7 @@ fun ControlScreen(
 
                             status.atHome &&
                                 !status.tracking ->
-                                "NON PARKEE - HOME - DEMARRAGE disponible"
+                                "NON PARKEE - HOME - UNPARK disponible"
 
                             else ->
                                 "NON PARKEE"
@@ -223,7 +223,7 @@ fun ControlScreen(
                 status.atHome &&
                 !status.tracking
             ) {
-                "OnStepX est NON PARKE. Depuis HOME, DEMARRER utilise la commande UNPARK OnStepX pour initialiser la session, activer les limites et le suivi."
+                "OnStepX est NON PARKE. Depuis HOME, UNPARK peut initialiser la session, activer les limites et le suivi."
             } else {
                 "UNPARK sert a sortir d'un PARK. Sur une monture simple, OnStepX peut aussi l'utiliser comme commande de demarrage depuis HOME."
             },
@@ -269,16 +269,7 @@ fun ControlScreen(
                         ),
                 modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    if (
-                        !status.parked &&
-                        status.atHome
-                    ) {
-                        "DEMARRER"
-                    } else {
-                        "UNPARK"
-                    }
-                )
+                Text("UNPARK")
             }
         }
 

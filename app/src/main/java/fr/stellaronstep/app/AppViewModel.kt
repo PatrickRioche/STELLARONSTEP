@@ -396,7 +396,7 @@ class AppViewModel(
         message =
             when {
                 !ok ->
-                    "UNPARK / DEMARRAGE refuse par OnStepX"
+                    "UNPARK refuse par OnStepX"
 
                 before.parked &&
                     !status.parked ->
@@ -404,10 +404,10 @@ class AppViewModel(
 
                 !before.parked &&
                     before.atHome ->
-                    "DEMARRAGE OK depuis HOME - limites et suivi OnStepX initialises"
+                    "UNPARK OK depuis HOME - limites et suivi OnStepX initialises"
 
                 else ->
-                    "UNPARK / DEMARRAGE OK"
+                    "UNPARK OK"
             }
     }
 

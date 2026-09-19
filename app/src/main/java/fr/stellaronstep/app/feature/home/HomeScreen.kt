@@ -133,7 +133,25 @@ fun HomeScreen(
 
                 Spacer(Modifier.height(2.dp))
 
-                Text("Suivi : ${if (s.tracking) "ON" else "OFF"}")
+                val trackingLabel =
+                    when {
+                        !s.tracking ->
+                            "OFF"
+
+                        s.raw.contains('(') ->
+                            "LUNAIRE"
+
+                        s.raw.contains('O') ->
+                            "SOLAIRE"
+
+                        s.raw.contains('k') ->
+                            "KING"
+
+                        else ->
+                            "SIDERAL"
+                    }
+
+                Text("Suivi : $trackingLabel")
                 Text("GOTO : ${if (s.slewing) "EN COURS" else "IDLE"}")
 
                 Text(
@@ -166,7 +184,7 @@ fun HomeScreen(
                     !s.tracking
                 ) {
                     Text(
-                        "Demarrage : utiliser DEMARRER depuis HOME si OnStepX attend l'initialisation de session.",
+                        "Initialisation : utiliser UNPARK depuis HOME si OnStepX attend le demarrage de session.",
                         color = AccentOrange,
                         style = MaterialTheme.typography.bodySmall
                     )
