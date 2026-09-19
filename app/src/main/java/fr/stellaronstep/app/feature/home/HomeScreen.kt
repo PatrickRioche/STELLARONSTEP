@@ -188,11 +188,10 @@ fun HomeScreen(
                 if (
                     s.connected &&
                     !s.parked &&
-                    s.atHome &&
-                    !s.tracking
+                    s.atHome
                 ) {
                     Text(
-                        "Initialisation : utiliser UNPARK depuis HOME si OnStepX attend le demarrage de session.",
+                        "Monture au HOME - etat NON PARKE.",
                         color = AccentOrange,
                         style = MaterialTheme.typography.bodySmall
                     )

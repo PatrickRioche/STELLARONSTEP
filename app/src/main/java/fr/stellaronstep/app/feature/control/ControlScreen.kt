@@ -44,9 +44,30 @@ fun ControlScreen(
     modifier: Modifier = Modifier
 ) {
     val status = vm.status
+
+    /*
+     * Un :GU# deja recu constitue un etat monture connu.
+     * On conserve cet etat pendant un petit incident de polling TCP afin
+     * d'eviter que HOME/PARK clignotent ou deviennent incoherents.
+     */
+    val mountStateKnown =
+        status.raw.isNotBlank()
+
     val canMove =
         status.connected &&
             !status.parked
+
+    val canHomeOrPark =
+        mountStateKnown &&
+            !status.parked &&
+            !status.parking &&
+            !vm.busy
+
+    val canUnpark =
+        mountStateKnown &&
+            status.parked &&
+            !status.parking &&
+            !vm.busy
 
     Column(
         modifier = modifier
@@ -103,6 +124,9 @@ fun ControlScreen(
 
                     Text(
                         when {
+                            !mountStateKnown ->
+                                "ETAT MONTURE INDISPONIBLE"
+
                             status.parking ->
                                 "PARK en cours"
 
@@ -110,14 +134,13 @@ fun ControlScreen(
                                 "Echec PARK"
 
                             status.parked ->
-                                "PARKEE - UNPARK requis"
+                                "PARKEE - UNPARK disponible"
 
-                            status.atHome &&
-                                !status.tracking ->
-                                "NON PARKEE - HOME - UNPARK disponible"
+                            status.connected ->
+                                "NON PARKEE - HOME / PARK disponibles"
 
                             else ->
-                                "NON PARKEE"
+                                "NON PARKEE - derniere position connue"
                         },
                         color =
                             if (
@@ -224,19 +247,32 @@ fun ControlScreen(
         )
 
         Text(
-            if (
-                !status.parked &&
-                status.atHome &&
-                !status.tracking
-            ) {
-                "OnStepX est NON PARKE. Depuis HOME, UNPARK peut initialiser la session, activer les limites et le suivi."
-            } else {
-                "UNPARK sert a sortir d'un PARK. Sur une monture simple, OnStepX peut aussi l'utiliser comme commande de demarrage depuis HOME."
+            when {
+                status.parked ->
+                    "Monture PARKEE : utiliser UNPARK pour reprendre le controle."
+
+                status.parking ->
+                    "PARK en cours : attendre la fin du mouvement."
+
+                mountStateKnown ->
+                    "Monture NON PARKEE : HOME et PARK sont disponibles."
+
+                else ->
+                    "Etat OnStepX en attente : les commandes automatiques restent bloquees."
             },
             color = Muted,
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.fillMaxWidth()
         )
+
+        if (vm.busy) {
+            Text(
+                "Commande OnStepX en cours...",
+                color = AccentOrange,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -244,10 +280,7 @@ fun ControlScreen(
         ) {
             OutlinedButton(
                 onClick = { vm.goHome() },
-                enabled =
-                    status.connected &&
-                        !status.parked &&
-                        !vm.busy,
+                enabled = canHomeOrPark,
                 modifier = Modifier.weight(1f)
             ) {
                 Text("HOME")
@@ -255,10 +288,7 @@ fun ControlScreen(
 
             OutlinedButton(
                 onClick = { vm.park() },
-                enabled =
-                    status.connected &&
-                        !status.parked &&
-                        !vm.busy,
+                enabled = canHomeOrPark,
                 modifier = Modifier.weight(1f)
             ) {
                 Text("PARK")
@@ -266,13 +296,7 @@ fun ControlScreen(
 
             OutlinedButton(
                 onClick = { vm.unpark() },
-                enabled =
-                    status.connected &&
-                        !vm.busy &&
-                        (
-                            status.parked ||
-                                status.atHome
-                        ),
+                enabled = canUnpark,
                 modifier = Modifier.weight(1f)
             ) {
                 Text("UNPARK")

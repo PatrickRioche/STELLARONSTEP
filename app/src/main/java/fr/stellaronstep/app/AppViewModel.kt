@@ -350,6 +350,15 @@ class AppViewModel(
     fun park() = action {
         val ok = repository.park()
 
+        delay(200)
+
+        status =
+            runCatching {
+                repository.readStatus()
+            }.getOrElse {
+                status
+            }
+
         message =
             if (ok) {
                 "PARK demande"
