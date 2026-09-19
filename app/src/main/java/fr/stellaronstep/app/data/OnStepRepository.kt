@@ -565,16 +565,6 @@ class OnStepRepository(
             return "GOTO refuse : monture parkee - faire UNPARK"
         }
 
-        if (!before.tracking) {
-            val trackingAccepted = tracking(true)
-
-            if (!trackingAccepted) {
-                return "GOTO refuse : impossible d'activer le suivi"
-            }
-
-            delay(250)
-        }
-
         val raReply = client.queryByte(":Sr$cleanRa#")
 
         if (raReply != "1") {
@@ -607,12 +597,22 @@ class OnStepRepository(
             "6" -> "GOTO refuse : hors limites"
             "7" -> "GOTO refuse : defaut materiel"
             "8" -> "GOTO refuse : monture deja en mouvement"
-            "9" -> "GOTO refuse : erreur non specifiee"
+            "9" -> "GOTO refuse : erreur non specifiee / autorite de position a verifier"
             else -> "GOTO : reponse OnStep $code"
         }
 
         if (code != "0") {
-            return "$text | MS=$code | GE=$internalError (${errorText(internalError)})"
+            val hint =
+                if (
+                    code == "9" ||
+                    internalError.padStart(2, '0') == "23"
+                ) {
+                    " | verifier INITIALISATION + RESET HOME"
+                } else {
+                    ""
+                }
+
+            return "$text | MS=$code | GE=$internalError (${errorText(internalError)})$hint"
         }
 
         delay(400)

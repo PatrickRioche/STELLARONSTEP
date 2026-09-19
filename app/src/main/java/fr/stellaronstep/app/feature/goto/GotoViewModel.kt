@@ -207,16 +207,6 @@ class GotoViewModel(
                 client.send(target.trackingMode.onStepCommand)
                 delay(100)
 
-                if (!before.tracking) {
-                    val accepted = client.queryByte(":Te#") == "1"
-                    if (!accepted) {
-                        throw IllegalStateException(
-                            "Impossible d'activer le suivi ${target.trackingMode.label}"
-                        )
-                    }
-                    delay(350)
-                }
-
                 val startRa = SkyMath.parseRaHours(before.ra)
                 val startDec = SkyMath.parseDecDeg(before.dec)
                 val startDistance =
@@ -247,6 +237,25 @@ class GotoViewModel(
                 // Le repository peut réappliquer le sidéral si le statut tracking
                 // n'était pas encore visible : on restaure toujours le taux cible.
                 client.send(target.trackingMode.onStepCommand)
+
+                /*
+                 * :MS# a ete accepte.
+                 * OnStepX a donc pu initialiser le premier GOTO.
+                 * Si le suivi etait OFF, on tente :Te# seulement maintenant.
+                 * Son refus n'annule jamais le GOTO deja accepte.
+                 */
+                if (!before.tracking) {
+                    delay(180)
+
+                    runCatching {
+                        client.queryByte(":Te#")
+                    }
+
+                    delay(100)
+
+                    // Restaurer le taux cible apres :Te#.
+                    client.send(target.trackingMode.onStepCommand)
+                }
 
                 repeat(240) { index ->
                     delay(500)
