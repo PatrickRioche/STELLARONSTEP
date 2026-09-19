@@ -9,8 +9,6 @@ import java.net.Socket
 class OnStepTcpClient(
     private val configProvider: () -> OnStepConnectionConfig
 ) {
-    private val lock = Any()
-
     suspend fun queryHash(command: String): String =
         withContext(Dispatchers.IO) {
             transact(command, ReplyMode.HASH_TERMINATED)
@@ -30,7 +28,7 @@ class OnStepTcpClient(
     private fun transact(
         command: String,
         mode: ReplyMode
-    ): String = synchronized(lock) {
+    ): String = synchronized(GLOBAL_LOCK) {
 
         require(
             command.startsWith(":") &&
@@ -120,6 +118,12 @@ class OnStepTcpClient(
     }
 
     companion object {
+        /*
+         * Une seule transaction OnStepX a la fois dans tout le processus.
+         */
+        private val GLOBAL_LOCK =
+            Any()
+
         private const val NO_REPLY_GRACE_MS =
             60L
     }

@@ -9,10 +9,10 @@ import androidx.lifecycle.viewModelScope
 import fr.stellaronstep.app.core.onstep.MountStatus
 import fr.stellaronstep.app.core.onstep.OnStepConnectionConfig
 import fr.stellaronstep.app.core.onstep.OnStepDiagnostics
-import fr.stellaronstep.app.core.onstep.OnStepTcpClient
 import fr.stellaronstep.app.core.onstep.SlewDirection
 import fr.stellaronstep.app.core.onstep.SlewRate
 import fr.stellaronstep.app.data.OnStepRepository
+import fr.stellaronstep.app.data.OnStepSession
 import fr.stellaronstep.app.data.PhoneLocationProvider
 import fr.stellaronstep.app.data.SettingsStore
 import kotlinx.coroutines.Job
@@ -50,17 +50,18 @@ class AppViewModel(
 
     var movingDirection by mutableStateOf<SlewDirection?>(null)
         private set
-
     private val client =
-        OnStepTcpClient { config }
+        OnStepSession.client(application)
 
     private val repository =
-        OnStepRepository(client)
+        OnStepSession.repository(application)
 
     private val phoneLocation =
         PhoneLocationProvider(application)
 
     private var pollingJob: Job? = null
+
+    private var consecutivePollFailures = 0
 
     fun updateConfig(value: OnStepConnectionConfig) {
         config = value
@@ -73,12 +74,44 @@ class AppViewModel(
             return
         }
 
-        pollingJob = viewModelScope.launch {
-            while (isActive) {
-                refreshStatus(silent = true)
-                delay(1200)
+        /*
+         * Polling strictement sequentiel.
+         * L'ancien code appelait refreshStatus(), qui relancait une
+         * coroutine et pouvait empiler des lectures TCP.
+         */
+        pollingJob =
+            viewModelScope.launch {
+                while (isActive) {
+                    try {
+                        status =
+                            repository.readStatus()
+
+                        consecutivePollFailures =
+                            0
+                    } catch (
+                        exception: Exception
+                    ) {
+                        consecutivePollFailures++
+
+                        /*
+                         * Une lecture ratee ne suffit plus a faire clignoter
+                         * l'etat de connexion.
+                         */
+                        if (
+                            consecutivePollFailures >=
+                            3
+                        ) {
+                            status =
+                                status.copy(
+                                    connected =
+                                        false
+                                )
+                        }
+                    }
+
+                    delay(1500)
+                }
             }
-        }
     }
 
     fun stopPolling() {
@@ -349,10 +382,33 @@ class AppViewModel(
     }
 
     fun unpark() = action {
-        repository.unpark()
-        message = "Unpark demande"
-        delay(300)
-        status = repository.readStatus()
+        val before =
+            status
+
+        val ok =
+            repository.unpark()
+
+        delay(350)
+
+        status =
+            repository.readStatus()
+
+        message =
+            when {
+                !ok ->
+                    "UNPARK / DEMARRAGE refuse par OnStepX"
+
+                before.parked &&
+                    !status.parked ->
+                    "UNPARK OK - monture operationnelle"
+
+                !before.parked &&
+                    before.atHome ->
+                    "DEMARRAGE OK depuis HOME - limites et suivi OnStepX initialises"
+
+                else ->
+                    "UNPARK / DEMARRAGE OK"
+            }
     }
 
     fun goHome() = action {

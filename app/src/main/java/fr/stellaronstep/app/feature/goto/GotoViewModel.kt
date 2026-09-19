@@ -6,10 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import fr.stellaronstep.app.core.onstep.OnStepTcpClient
 import fr.stellaronstep.app.data.OnStepRepository
+import fr.stellaronstep.app.data.OnStepSession
 import fr.stellaronstep.app.data.PhoneLocationProvider
-import fr.stellaronstep.app.data.SettingsStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -19,9 +18,14 @@ import kotlin.math.max
 class GotoViewModel(
     application: Application
 ) : AndroidViewModel(application) {
-    private val settings = SettingsStore(application)
-    private val client = OnStepTcpClient { settings.load() }
-    private val onStep = OnStepRepository(client)
+    /*
+     * Meme session OnStepX que le reste de l'application.
+     */
+    private val client =
+        OnStepSession.client(application)
+
+    private val onStep =
+        OnStepSession.repository(application)
     private val locationProvider = PhoneLocationProvider(application)
     private val catalog = GotoCatalogRepository(application)
     private val preferences =

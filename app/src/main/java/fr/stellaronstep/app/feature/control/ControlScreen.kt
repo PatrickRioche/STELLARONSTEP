@@ -102,12 +102,32 @@ fun ControlScreen(
                     )
 
                     Text(
-                        if (status.parked) {
-                            "PARK actif - UNPARK requis"
-                        } else {
-                            "Pret au mouvement"
+                        when {
+                            status.parking ->
+                                "PARK en cours"
+
+                            status.parkFailed ->
+                                "Echec PARK"
+
+                            status.parked ->
+                                "PARKEE - UNPARK requis"
+
+                            status.atHome &&
+                                !status.tracking ->
+                                "NON PARKEE - HOME - DEMARRAGE disponible"
+
+                            else ->
+                                "NON PARKEE"
                         },
-                        color = if (status.parked) Danger else Muted,
+                        color =
+                            if (
+                                status.parked ||
+                                status.parkFailed
+                            ) {
+                                Danger
+                            } else {
+                                Muted
+                            },
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -197,12 +217,31 @@ fun ControlScreen(
             style = MaterialTheme.typography.labelLarge
         )
 
+        Text(
+            if (
+                !status.parked &&
+                status.atHome &&
+                !status.tracking
+            ) {
+                "OnStepX est NON PARKE. Depuis HOME, DEMARRER utilise la commande UNPARK OnStepX pour initialiser la session, activer les limites et le suivi."
+            } else {
+                "UNPARK sert a sortir d'un PARK. Sur une monture simple, OnStepX peut aussi l'utiliser comme commande de demarrage depuis HOME."
+            },
+            color = Muted,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.fillMaxWidth()
+        )
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
                 onClick = { vm.goHome() },
+                enabled =
+                    status.connected &&
+                        !status.parked &&
+                        !vm.busy,
                 modifier = Modifier.weight(1f)
             ) {
                 Text("HOME")
@@ -210,6 +249,10 @@ fun ControlScreen(
 
             OutlinedButton(
                 onClick = { vm.park() },
+                enabled =
+                    status.connected &&
+                        !status.parked &&
+                        !vm.busy,
                 modifier = Modifier.weight(1f)
             ) {
                 Text("PARK")
@@ -217,9 +260,25 @@ fun ControlScreen(
 
             OutlinedButton(
                 onClick = { vm.unpark() },
+                enabled =
+                    status.connected &&
+                        !vm.busy &&
+                        (
+                            status.parked ||
+                                status.atHome
+                        ),
                 modifier = Modifier.weight(1f)
             ) {
-                Text("UNPARK")
+                Text(
+                    if (
+                        !status.parked &&
+                        status.atHome
+                    ) {
+                        "DEMARRER"
+                    } else {
+                        "UNPARK"
+                    }
+                )
             }
         }
 

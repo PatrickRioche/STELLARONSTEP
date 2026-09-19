@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import fr.stellaronstep.app.AppViewModel
 import fr.stellaronstep.app.R
+import fr.stellaronstep.app.ui.theme.AccentOrange
 import fr.stellaronstep.app.ui.theme.Muted
 import fr.stellaronstep.app.ui.theme.Success
 import fr.stellaronstep.app.ui.theme.Surface
@@ -134,8 +135,42 @@ fun HomeScreen(
 
                 Text("Suivi : ${if (s.tracking) "ON" else "OFF"}")
                 Text("GOTO : ${if (s.slewing) "EN COURS" else "IDLE"}")
-                Text("Park : ${if (s.parked) "OUI" else "NON"}")
+
+                Text(
+                    "Parking : ${
+                        when {
+                            s.parking ->
+                                "PARK EN COURS"
+
+                            s.parkFailed ->
+                                "ECHEC PARK"
+
+                            s.parked ->
+                                "PARKEE - UNPARK requis"
+
+                            s.connected ->
+                                "NON PARKEE"
+
+                            else ->
+                                "--"
+                        }
+                    }"
+                )
+
                 Text("Home : ${if (s.atHome) "OUI" else "NON"}")
+
+                if (
+                    s.connected &&
+                    !s.parked &&
+                    s.atHome &&
+                    !s.tracking
+                ) {
+                    Text(
+                        "Demarrage : utiliser DEMARRER depuis HOME si OnStepX attend l'initialisation de session.",
+                        color = AccentOrange,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
 
                 if (s.pierSide != null) {
                     Text("Pier side : ${s.pierSide}")
