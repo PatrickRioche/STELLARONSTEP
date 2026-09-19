@@ -29,6 +29,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import fr.stellaronstep.app.AppViewModel
+import fr.stellaronstep.app.BuildConfig
 import fr.stellaronstep.app.R
 import fr.stellaronstep.app.ui.theme.AccentOrange
 import fr.stellaronstep.app.ui.theme.Muted
@@ -100,6 +101,13 @@ fun HomeScreen(
                 Text(
                     "${vm.config.host}:${vm.config.port}",
                     color = Muted,
+                    style = MaterialTheme.typography.bodySmall
+                )
+
+                Text(
+                    "StellarOnStep v${BuildConfig.VERSION_NAME}",
+                    color = AccentOrange,
+                    fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.bodySmall
                 )
             }

@@ -159,6 +159,12 @@ fun ControlScreen(
             vm = vm
         )
 
+        RateButton(
+            rate = SlewRate.MAX,
+            vm = vm,
+            modifier = Modifier.fillMaxWidth()
+        )
+
         Text(
             "Maintenir une direction pour deplacer la monture",
             color = Muted,

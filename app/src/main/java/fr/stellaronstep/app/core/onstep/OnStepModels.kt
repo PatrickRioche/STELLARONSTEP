@@ -64,5 +64,6 @@ enum class SlewRate(
     GUIDE("Guidage", ":RG#"),
     CENTER("Centrage", ":RC#"),
     MOVE("Deplacement", ":RM#"),
-    SLEW("Rapide", ":RS#")
+    SLEW("Rapide 50 %", ":RS#"),
+    MAX("MAX 100 %", ":R9#")
 }
