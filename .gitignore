@@ -8,3 +8,16 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
+
+# Android release signing
+*.jks
+*.keystore
+keystore.properties
+
+# Local working backups
+backup-*/
+keystore.properties
+*.jks
+*.keystore
+
+dist/

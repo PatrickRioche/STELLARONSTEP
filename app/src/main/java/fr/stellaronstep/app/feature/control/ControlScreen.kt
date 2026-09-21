@@ -61,11 +61,18 @@ fun ControlScreen(
         mountStateKnown &&
             !status.parked &&
             !status.parking &&
-            !vm.busy
+            !vm.busy &&
+            vm.movingDirection == null
 
+    /*
+     * OnStepX peut etre au HOME apres RESET HOME sans etre PARKED.
+     * Dans cet etat UNPARK est justement necessaire pour rendre
+     * la monture operationnelle.
+     */
     val canUnpark =
         mountStateKnown &&
-            status.parked &&
+            status.connected &&
+            (status.parked || status.atHome) &&
             !status.parking &&
             !vm.busy
 
@@ -135,6 +142,9 @@ fun ControlScreen(
 
                             status.parked ->
                                 "PARKEE - UNPARK disponible"
+
+                            status.atHome ->
+                                "HOME - UNPARK pour rendre la monture operationnelle"
 
                             status.connected ->
                                 "NON PARKEE - HOME / PARK disponibles"
@@ -250,6 +260,9 @@ fun ControlScreen(
             when {
                 status.parked ->
                     "Monture PARKEE : utiliser UNPARK pour reprendre le controle."
+
+                status.atHome ->
+                    "Monture au HOME : utiliser UNPARK pour activer les mouvements apres RESET HOME."
 
                 status.parking ->
                     "PARK en cours : attendre la fin du mouvement."

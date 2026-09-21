@@ -61,6 +61,14 @@ class AppViewModel(
 
     private var pollingJob: Job? = null
 
+    /*
+     * Les commandes de mouvement manuel sont volontairement suivies.
+     * Cela évite qu'une commande directionnelle retardée parte après
+     * un STOP puis après le démarrage d'un HOME/GOTO/PARK.
+     */
+    private var manualMoveJob: Job? = null
+    private var manualStopJob: Job? = null
+
     private var consecutivePollFailures = 0
 
     fun updateConfig(value: OnStepConnectionConfig) {
@@ -371,34 +379,110 @@ class AppViewModel(
             return
         }
 
+        /*
+         * Attendre le STOP précédent avant de lancer un nouveau mouvement.
+         * Le délai interne de startMove() est annulable : une libération
+         * rapide du bouton ne peut donc plus démarrer le mouvement après STOP.
+         */
+        manualMoveJob?.cancel()
+
+        val previousStop = manualStopJob
+        val rate = selectedRate
+
         movingDirection = direction
 
-        action {
-            repository.startMove(
-                direction,
-                selectedRate
-            )
-            message = "${direction.label} - ${selectedRate.label}"
-        }
+        manualMoveJob =
+            viewModelScope.launch {
+                try {
+                    previousStop?.join()
+
+                    if (movingDirection != direction) {
+                        return@launch
+                    }
+
+                    repository.startMove(
+                        direction,
+                        rate
+                    )
+
+                    if (movingDirection == direction) {
+                        message =
+                            "${direction.label} - ${rate.label}"
+                    }
+                } catch (
+                    exception: Exception
+                ) {
+                    if (movingDirection == direction) {
+                        movingDirection = null
+                    }
+
+                    message =
+                        exception.message
+                            ?: "Erreur mouvement OnStep"
+                }
+            }
     }
 
     fun stopMove(
         direction: SlewDirection
-    ) = action {
-        repository.stopMove(direction)
+    ) {
+        val startJob =
+            manualMoveJob
+
+        manualMoveJob = null
 
         if (movingDirection == direction) {
             movingDirection = null
         }
 
-        message = "Mouvement arrete"
+        manualStopJob =
+            viewModelScope.launch {
+                try {
+                    /*
+                     * Annuler et terminer la séquence START avant d'envoyer STOP.
+                     * Sinon :RM# peut être suivi de :Mn# après le STOP.
+                     */
+                    startJob?.cancel()
+                    startJob?.join()
+
+                    repository.stopMove(direction)
+                    message = "Mouvement arrete"
+                } catch (
+                    exception: Exception
+                ) {
+                    message =
+                        exception.message
+                            ?: "Erreur arret mouvement"
+                }
+            }
+    }
+
+    private suspend fun prepareForAutomaticMotion() {
+        val startJob =
+            manualMoveJob
+
+        manualMoveJob = null
+        movingDirection = null
+
+        /*
+         * 1. Empêcher tout START retardé.
+         * 2. Attendre le STOP envoyé à la libération du bouton.
+         * 3. Envoyer un STOP global.
+         * 4. Laisser OnStepX stabiliser son état avant HOME/GOTO/PARK.
+         */
+        startJob?.cancel()
+        startJob?.join()
+
+        manualStopJob?.join()
+        manualStopJob = null
+
+        repository.emergencyStop()
+        delay(180)
     }
 
     fun stopAll() {
-        movingDirection = null
-
         action {
-            repository.emergencyStop()
+            prepareForAutomaticMotion()
             message = "STOP GLOBAL envoye"
         }
     }
@@ -429,6 +513,8 @@ class AppViewModel(
     }
 
     fun park() = action {
+        prepareForAutomaticMotion()
+
         val ok = repository.park()
 
         delay(200)
@@ -464,6 +550,8 @@ class AppViewModel(
     }
 
     fun resetHome() = action {
+        prepareForAutomaticMotion()
+
         message =
             repository.resetHome()
 
@@ -502,6 +590,8 @@ class AppViewModel(
     }
 
     fun goHome() = action {
+        prepareForAutomaticMotion()
+
         message = repository.goHome()
         status = repository.readStatus()
     }
@@ -510,6 +600,8 @@ class AppViewModel(
         ra: String,
         dec: String
     ) = action {
+        prepareForAutomaticMotion()
+
         message = repository.goto(ra, dec)
         status = repository.readStatus()
     }
@@ -517,6 +609,8 @@ class AppViewModel(
     fun startAlignment(
         stars: Int
     ) = action {
+        prepareForAutomaticMotion()
+
         message =
             if (repository.startAlignment(stars)) {
                 "Alignement $stars etoile(s) demarre"
