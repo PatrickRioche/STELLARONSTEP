@@ -1,6 +1,6 @@
 # StellarOnStep
 
-**StellarOnStep** est une application Android permettant de piloter simplement une monture astronomique équipée de **OnStep / OnStepX**.
+**StellarOnStep** est une application Android propriétaire permettant de piloter simplement une monture astronomique équipée de **OnStep / OnStepX**.
 
 L'application est développée en **Kotlin** avec **Jetpack Compose** et communique directement avec OnStep.
 
@@ -196,6 +196,12 @@ StellarOnStep fonctionnera directement avec OnStep et ne dépendra pas du serveu
 - [ ] historique
 - [ ] carte du ciel
 - [ ] publication Google Play
+
+## Licence
+
+Le code StellarOnStep pour lequel le titulaire dispose des droits nécessaires est distribué sous **licence propriétaire — All rights reserved**. Les bibliothèques, données et composants tiers conservent leurs licences respectives ; leurs mentions sont conservées dans `app/src/main/assets/THIRD_PARTY_NOTICES.txt`.
+
+Voir le fichier [`LICENSE`](LICENSE) pour les conditions applicables.
 
 ## Dépôt
 
